@@ -1,0 +1,42 @@
+KVC BOOISCHOT FOOTBALL IQ — PUBLICEREN VIA GITHUB PAGES
+
+Dit pakket bevat uitsluitend de eigen Football IQ-proef en de minimale
+configuratie om die via GitHub Actions op GitHub Pages te publiceren.
+De spelinhoud en vormgeving zijn niet aangepast.
+
+Eenmalig instellen (Windows, zonder opdrachtprompt):
+
+1. Installeer GitHub Desktop vanaf https://desktop.github.com/ en meld je aan
+   met je eigen GitHub-account.
+2. Pak football-iq-pages-ready.zip uit via Verkenner (rechtermuisknop > Alles
+   uitpakken). Open de map football-iq-proef; daarin staan package.json en
+   index.html.
+3. Open GitHub Desktop. Kies File > Add local repository en selecteer die map.
+   Als GitHub Desktop vraagt om een Git-repository aan te maken, kies dan
+   Create a repository. Laat de projectbestanden in deze map staan.
+4. Kies Publish repository. Geef de aparte repository de naam
+   football-iq-kvc-booischot en zet Keep this code private uit, zodat Pages
+   gratis kan publiceren. Dit maakt de broncode openbaar.
+5. Open de repository op github.com. Kies Settings > Pages. Bij Build and
+   deployment kies je GitHub Actions als Source.
+6. Open Actions en keur de eerste workflowrun goed als GitHub daar om vraagt.
+   Wacht tot “Publish Football IQ to GitHub Pages” groen is.
+7. Open Settings > Pages. De HTTPS-link staat daar, normaal in de vorm
+   https://JOUWGEBRUIKERSNAAM.github.io/football-iq-kvc-booischot/
+   De precieze link gebruikt jouw GitHub-gebruikersnaam.
+
+Nieuwe versies online zetten:
+
+GitHub Desktop toont gewijzigde bestanden. Vul onder Summary bijvoorbeeld
+“Update Football IQ”, kies Commit to main en klik Push origin. GitHub Actions
+publiceert de nieuwe versie automatisch.
+
+PWA:
+
+De app gebruikt relatieve paden, zodat de webbestanden, manifest, pictogrammen
+en service worker ook binnen de repositorymap op GitHub Pages blijven werken.
+Na de eerste HTTPS-bezoek kan Chrome op Android de optie “Toevoegen aan
+startscherm” aanbieden. De browser bepaalt zelf de precieze menutekst.
+
+Alleen de projectcode, eigen UI en Phaser-dependency zijn opgenomen. Er zijn
+geen bestanden van Academy Parent inbegrepen.
