@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
-import { EXERCISE_SEQUENCE, PASS_SCENARIO, SPACE_MAKING_SCENARIO } from './scenarios.js';
-import { isExerciseChoiceValid, validateExerciseSequence } from './exercise-contract.js';
+import { EXERCISE_SEQUENCE, PASS_SCENARIO, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validatePassTargets, validateRunChoicePaths } from './exercise-contract.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -47,6 +47,13 @@ const COPY = {
 
 const exerciseContractErrors = validateExerciseSequence(EXERCISE_SEQUENCE);
 if (exerciseContractErrors.length) throw new Error(`Ongeldige oefenreeks: ${exerciseContractErrors.join(' ')}`);
+const scenarioErrors = [
+  ...validateKvcScenarioGeometry(PASS_SCENARIO, 'pass'),
+  ...validatePassTargets(PASS_SCENARIO),
+  ...validateKvcScenarioGeometry(SPACE_MAKING_SCENARIO, 'run'),
+  ...validateRunChoicePaths(RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO.watch),
+];
+if (scenarioErrors.length) throw new Error(`Ongeldige KVC-situatie: ${scenarioErrors.join(' ')}`);
 
 class FootballScene extends Phaser.Scene {
   constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; }
@@ -237,7 +244,7 @@ class FootballScene extends Phaser.Scene {
     dom.helper.textContent='Kijk om je heen.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(350);
     await Promise.all([
-      this.moveBall(PASS_SCENARIO.watch.ball,850,'Sine.easeInOut'),
+      this.moveBall(PASS_SCENARIO.watch.ball,1250,'Sine.easeInOut'),
       ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,PASS_SCENARIO.watch[id],650)),
     ]);
     this.world.ball={...PASS_SCENARIO.watch.ball};this.placeBall();
@@ -257,7 +264,7 @@ class FootballScene extends Phaser.Scene {
     await this.delay(300);
     await Promise.all([
       ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,SPACE_MAKING_SCENARIO.watch[id],650)),
-      this.moveBall(SPACE_MAKING_SCENARIO.watch.ball,650),
+      this.moveBall(SPACE_MAKING_SCENARIO.watch.ball,1250),
     ]);
     dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
     dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';await this.revealChoices(10000);
@@ -305,99 +312,105 @@ class FootballScene extends Phaser.Scene {
   }
 
   async playA() {
-    // RF (7) receives on the right and continues up the same flank.
+    // RF (7) staat breed rechts; de verdediging schuift mee maar sluit de pass niet.
+    const receiver=PASS_SCENARIO.watch[PASS_SCENARIO.passTargets.A.receiver];
     await Promise.all([
-      this.moveBall({x:78,y:47},820,'Sine.easeInOut'),
-      this.move('wide',{x:78,y:47},720),
-      this.move('interceptor',{x:68,y:45},780),
-      this.move('forward',{x:66,y:29},820),
-      this.move('press',{x:55,y:54},650),
-      this.move('farDef',{x:74,y:48},720),
-      this.move('support',{x:34,y:67},720),
-      this.move('gk',{x:49,y:84},650),
-      this.move('cover',{x:48,y:39},760),
+      this.moveBall(receiver,1150,'Sine.easeInOut'),
+      this.move(PASS_SCENARIO.passTargets.A.receiver,1150),
+      this.move('interceptor',{x:59,y:41},850),
+      this.move('forward',{x:53,y:24},700),
+      this.move('press',{x:52,y:49},850),
+      this.move('farDef',{x:75,y:42},900),
+      this.move('support',{x:27,y:65},700),
+      this.move('gk',{x:49,y:84},700),
+      this.move('cover',{x:59,y:43},700),
+      this.move('me',{x:51,y:55},750),
       this.move('oppGk',{x:50,y:6},650),
     ]);
-    // RF (7) takes two measured touches forward while the full team shifts.
+    // RF neemt een korte bal mee langs de rechterkant; LF blijft links als steun.
     await Promise.all([
-      this.move('wide',{x:83,y:42},620),this.moveBall({x:82,y:43},620,'Sine.easeOut'),
-      this.move('interceptor',{x:75,y:42},620),this.move('farDef',{x:78,y:44},620),
-      this.move('me',{x:56,y:51},620),this.move('forward',{x:69,y:27},620),
-      this.move('press',{x:60,y:50},620),this.move('cover',{x:52,y:37},620),
-      this.move('support',{x:31,y:65},620),this.move('gk',{x:48,y:82},620),this.move('oppGk',{x:50,y:5},620),
+      this.move('wide',{x:82,y:43},750),this.moveBall({x:82,y:43},750,'Sine.easeOut'),
+      this.move('interceptor',{x:64,y:39},800),this.move('farDef',{x:79,y:42},700),
+      this.move('me',{x:56,y:52},750),this.move('forward',{x:54,y:23},700),
+      this.move('press',{x:57,y:48},750),this.move('cover',{x:56,y:41},750),
+      this.move('support',{x:28,y:64},700),this.move('gk',{x:49,y:82},700),this.move('oppGk',{x:50,y:5},650),
     ]);
   }
   async playB() {
     // The central pass is intercepted in view: the defender runs across the ball's
     // path, arrives just ahead of it, then takes the loose ball toward the press.
     // The intended receiver is S (9); T3 crosses the actual central pass lane.
-    const meet={x:51,y:43};
+    const meet=PASS_SCENARIO.passTargets.B.interception;
     await Promise.all([
       this.moveBall(meet,1050,'Linear'),
       this.move('interceptor',meet,850,'Sine.easeIn'),
-      this.move('forward',{x:62,y:32},620),
-      this.move('press',{x:53,y:53},600),
-      this.move('cover',{x:46,y:37},760),
-      this.move('wide',{x:79,y:47},760),this.move('support',{x:38,y:70},700),
-      this.move('me',{x:53,y:54},700),this.move('gk',{x:50,y:88},700),
-      this.move('farDef',{x:75,y:52},700),this.move('oppGk',{x:50,y:6},700),
+      this.move('forward',{x:52,y:34},700),
+      this.move('press',{x:49,y:49},750),
+      this.move('cover',{x:55,y:42},750),
+      this.move('wide',{x:68,y:51},750),this.move('support',{x:39,y:67},750),
+      this.move('me',{x:51,y:53},750),this.move('gk',{x:50,y:86},700),
+      this.move('farDef',{x:70,y:43},750),this.move('oppGk',{x:50,y:6},650),
     ]);
     this.ball.setDepth(this.actors.interceptor.container.depth+2);
     await this.delay(180);
     await Promise.all([
-      this.move('interceptor',{x:54,y:50},520,'Sine.easeIn'),
-      this.moveBall({x:53,y:51},520,'Sine.easeOut'),
-      this.move('press',{x:53,y:52},430),
-      this.move('wide',{x:76,y:45},430),this.move('support',{x:40,y:68},430),
-      this.move('me',{x:55,y:52},430),this.move('gk',{x:50,y:86},430),
-      this.move('cover',{x:48,y:40},430),this.move('farDef',{x:73,y:49},430),this.move('oppGk',{x:50,y:6},430),
+      this.move('interceptor',{x:54,y:49},700,'Sine.easeIn'),
+      this.moveBall({x:54,y:49},700,'Sine.easeOut'),
+      this.move('press',{x:52,y:50},650),
+      this.move('wide',{x:66,y:54},650),this.move('support',{x:41,y:66},650),
+      this.move('me',{x:53,y:52},650),this.move('gk',{x:50,y:84},650),
+      this.move('forward',{x:52,y:35},650),
+      this.move('cover',{x:52,y:41},650),this.move('farDef',{x:68,y:45},650),this.move('oppGk',{x:50,y:6},650),
     ]);
   }
   async playC() {
-    // A safe return pass. RF remains on the right touchline and offers
-    // width; the rest of the team slides into supporting positions.
+    // Veilige terugpass naar LF (11); beide flanken houden hun eigen kant.
+    const receiver=PASS_SCENARIO.passTargets.C.receiver;
+    const reception=PASS_SCENARIO.passTargets.C.reception;
     await Promise.all([
-      this.moveBall({x:39,y:72},780,'Sine.easeInOut'),
-      this.move('support',{x:39,y:72},700),
-      this.move('press',{x:53,y:56},650),
-      this.move('wide',{x:81,y:46},700),
-      this.move('forward',{x:63,y:31},720),
-      this.move('interceptor',{x:66,y:40},680),
-      this.move('farDef',{x:75,y:50},680),
-      this.move('gk',{x:49,y:87},650),this.move('cover',{x:40,y:40},680),this.move('oppGk',{x:50,y:6},650),
+      this.moveBall(reception,1100,'Sine.easeInOut'),
+      this.move(receiver,reception,1100),
+      this.move('press',{x:43,y:51},700),
+      this.move('wide',{x:78,y:46},700),
+      this.move('forward',{x:52,y:25},700),
+      this.move('interceptor',{x:49,y:39},700),
+      this.move('farDef',{x:69,y:39},700),
+      this.move('me',{x:52,y:54},700),
+      this.move('gk',{x:49,y:84},650),this.move('cover',{x:54,y:42},700),this.move('oppGk',{x:50,y:6},650),
     ]);
     await Promise.all([
-      this.move('support',{x:34,y:67},420),this.moveBall({x:34,y:67},420,'Sine.easeOut'),
-      this.move('me',{x:52,y:54},420),this.move('wide',{x:82,y:44},420),
-      this.move('forward',{x:64,y:30},420),this.move('press',{x:54,y:53},420),
-      this.move('cover',{x:42,y:41},420),this.move('interceptor',{x:64,y:40},420),
-      this.move('farDef',{x:75,y:49},420),this.move('gk',{x:49,y:86},420),this.move('oppGk',{x:50,y:6},420),
+      this.move(receiver,{x:33,y:65},650),this.moveBall({x:33,y:65},650,'Sine.easeOut'),
+      this.move('me',{x:53,y:52},650),this.move('wide',{x:79,y:45},650),
+      this.move('forward',{x:53,y:24},650),this.move('press',{x:45,y:50},650),
+      this.move('cover',{x:53,y:41},650),this.move('interceptor',{x:50,y:38},650),
+      this.move('farDef',{x:68,y:38},650),this.move('gk',{x:49,y:83},650),this.move('oppGk',{x:50,y:6},650),
     ]);
   }
 
   async playRunChoice(choice) {
-    if(choice==='A'){
-      await Promise.all([this.move('forward',{x:57,y:39},780),this.move('interceptor',{x:58,y:35},760),this.move('wide',{x:82,y:39},600),this.move('support',{x:22,y:60},620),this.move('me',{x:57,y:61},500),this.move('gk',{x:52,y:80},500),this.move('press',{x:49,y:45},600),this.move('cover',{x:63,y:38},620),this.move('farDef',{x:72,y:26},550),this.move('oppGk',{x:50,y:7},500)]);
-      await Promise.all([this.moveBall({x:57,y:39},620,'Sine.easeOut'),this.move('me',{x:57,y:57},700)]);
-      await Promise.all([this.move('forward',{x:54,y:37},420),this.move('interceptor',{x:56,y:36},420),this.move('wide',{x:83,y:38},420),this.move('cover',{x:61,y:37},420)]);
-    }else if(choice==='B'){
-      await Promise.all([this.move('forward',{x:61,y:24},650),this.move('interceptor',{x:61,y:27},620),this.move('wide',{x:83,y:40},650),this.move('support',{x:21,y:59},650),this.move('me',{x:59,y:58},650),this.move('gk',{x:51,y:79},650),this.move('press',{x:49,y:44},650),this.move('cover',{x:63,y:36},650),this.move('farDef',{x:73,y:25},650),this.move('oppGk',{x:50,y:6},500)]);
-      await Promise.all([this.moveBall({x:82,y:40},760),this.move('wide',{x:82,y:40},700),this.move('farDef',{x:77,y:35},700)]);
-      await Promise.all([this.move('me',{x:63,y:52},480),this.move('forward',{x:62,y:26},480),this.move('interceptor',{x:63,y:29},480)]);
-    }else{
-      // S trekt zijn marker mee. RF start pas naar binnen nadat de ruimte zichtbaar opent.
-      await Promise.all([this.move('forward',{x:43,y:35},760),this.move('interceptor',{x:46,y:33},760),this.move('wide',{x:78,y:39},600),this.move('support',{x:22,y:59},620),this.move('press',{x:51,y:45},620),this.move('cover',{x:62,y:37},650),this.move('farDef',{x:72,y:27},650),this.move('gk',{x:52,y:80},550),this.move('me',{x:58,y:60},550),this.move('oppGk',{x:51,y:6},500)]);
-      await Promise.all([this.move('wide',{x:67,y:34},700),this.moveBall({x:67,y:34},700,'Sine.easeOut'),this.move('me',{x:58,y:57},650),this.move('press',{x:53,y:46},620),this.move('cover',{x:64,y:35},650)]);
-      // RF follows with short touches through the opened right channel, then
-      // shoots from in front of goal. The goalkeeper moves to meet the shot.
-      await Promise.all([this.move('wide',{x:59,y:19},850),this.moveBall({x:59,y:19},850,'Sine.easeInOut'),this.move('forward',{x:46,y:30},700),this.move('interceptor',{x:48,y:31},700),this.move('support',{x:20,y:57},600),this.move('gk',{x:52,y:76},600),this.move('press',{x:56,y:48},720),this.move('cover',{x:60,y:31},720),this.move('farDef',{x:65,y:23},720),this.move('oppGk',{x:52,y:4},700)]);
-      await Promise.all([this.move('wide',{x:57,y:17},430),this.moveBall({x:57,y:17},430,'Sine.easeOut'),this.move('oppGk',{x:52,y:4},430),this.move('interceptor',{x:50,y:25},430),this.move('farDef',{x:60,y:20},430)]);
-      await Promise.all([this.moveBall({x:51,y:1},560,'Sine.easeIn'),this.move('oppGk',{x:48,y:5},430),this.move('wide',{x:57,y:17},430)]);
+    for(const phase of RUN_CHOICE_PATHS[choice]) await this.playRunPhase(phase);
+    if(choice==='C'){
       this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.40).setAlpha(1).setScale(.65);
       this.tweens.add({targets:this.goalBanner,scale:1,duration:350,ease:'Back.Out'});
-      await Promise.all([this.move('wide',{x:58,y:16},360),this.move('forward',{x:55,y:18},360),this.move('me',{x:61,y:48},500),this.move('support',{x:31,y:51},500)]);
-      await this.delay(650);this.goalBanner.setAlpha(0);
+      await this.delay(800);this.goalBanner.setAlpha(0);
     }
+  }
+
+  async playRunPhase(phase) {
+    const { duration, players, carrier, receiver, ballTo, shot } = phase;
+    if(receiver && (!ballTo || !players[receiver] || players[receiver].x!==ballTo.x || players[receiver].y!==ballTo.y)) {
+      throw new Error('De pass in een loopvervolg moet bij de gekozen ontvanger aankomen.');
+    }
+    const tasks=Object.entries(players).map(([id,to])=>this.move(id,to,duration));
+    if(carrier){
+      if(!players[carrier])throw new Error('De baldrager moet tijdens de dribbel meebewegen.');
+      tasks.push(this.moveBall(players[carrier],duration,'Sine.easeInOut'));
+    }else if(receiver||ballTo){
+      tasks.push(this.moveBall(ballTo,duration,'Sine.easeInOut'));
+    }else if(shot){
+      tasks.push(this.moveBall(shot,duration,'Sine.easeIn'));
+    }else throw new Error('Elke loopfase heeft een baldrager, ontvanger of schot nodig.');
+    await Promise.all(tasks);
   }
 
   showFeedback(choice) {
