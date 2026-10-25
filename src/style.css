@@ -17,6 +17,10 @@ button { color:inherit; font:inherit; cursor:pointer; -webkit-tap-highlight-colo
 h1,h2,p { margin-top:0; }
 h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; letter-spacing:-.045em; }
 .intro-copy { max-width:575px; margin:8px 0 0; color:#b3c1b5; font-size:14px; line-height:1.5; }
+.exercise-picker { display:flex;flex-wrap:wrap;gap:8px;margin-top:13px; }
+.exercise-option { min-height:40px;padding:8px 13px;border:1px solid #ffffff25;border-radius:11px;background:#14291d;color:#d7e5d7;font-size:12px;font-weight:750; }
+.exercise-option.selected { border-color:#b3f34a99;background:#263d25;color:#d5ff70; }
+.exercise-option:focus-visible { outline:2px solid var(--lime);outline-offset:2px; }
 .start-button,.primary-button { display:inline-flex; align-items:center; justify-content:center; gap:13px; border:0; border-radius:13px; background:var(--lime); color:#14200d; font-size:14px; font-weight:800; padding:14px 19px; box-shadow:0 8px 24px #8dd83420; transition:transform .15s,filter .15s; }
 .start-button:hover,.primary-button:hover { transform:translateY(-1px);filter:brightness(1.06); }
 .game-shell { flex:1; min-height:0; border:1px solid var(--edge); border-radius:22px; overflow:hidden; background:#0c1d14; box-shadow:0 22px 70px #0005; display:flex; flex-direction:column; }
@@ -82,6 +86,8 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .intro { align-items:start;flex-direction:column;gap:12px;padding:14px 2px 12px; }
   h1 { font-size:27px; }
   .intro-copy { font-size:12px;margin-top:5px;max-width:520px; }
+  .exercise-picker { gap:6px;margin-top:9px; }
+  .exercise-option { min-height:37px;padding:7px 9px;font-size:10px; }
   .intro .start-button { display:none; }
   .game-shell { border-radius:17px;min-height:0; }
   .field-frame { min-height:0;flex:1 1 auto; }
@@ -111,6 +117,7 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .topbar { min-height:52px; }
   .intro { padding:10px 2px 9px; }
   .intro-copy { display:none; }
+  .exercise-picker { margin-top:7px; }
   .field-frame { min-height:280px; }
   .lesson-panel { padding-top:9px; }
   .answer { min-height:49px; }

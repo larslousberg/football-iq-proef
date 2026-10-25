@@ -1,4 +1,4 @@
-const CACHE = 'kvc-voetbaldenken-v1';
+const CACHE = 'kvc-voetbaldenken-v2';
 const BASE_URL = self.registration.scope;
 const APP_SHELL = ['index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'].map((path) => new URL(path, BASE_URL).href);
 self.addEventListener('install', (event) => {

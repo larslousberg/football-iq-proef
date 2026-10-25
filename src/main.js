@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
+import { SPACE_MAKING_SCENARIO } from './scenarios.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -20,6 +21,11 @@ const dom = {
   watchAgain: document.querySelector('#watchAgain'),
   retry: document.querySelector('#retry'),
   helper: document.querySelector('#helper'),
+  passExercise: document.querySelector('#passExercise'),
+  runExercise: document.querySelector('#runExercise'),
+  introTitle: document.querySelector('#introTitle'),
+  introCopy: document.querySelector('#introCopy'),
+  welcomeCopy: document.querySelector('#welcomeCopy'),
 };
 
 const COPY = {
@@ -41,15 +47,17 @@ const COPY = {
 };
 
 class FootballScene extends Phaser.Scene {
-  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeTweens = []; }
+  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; }
 
   create() {
     this.pitch = this.add.graphics();
     this.ball = this.makeBall();
     this.ballLabel = this.add.text(0, 0, 'BAL', { fontFamily: 'DM Sans, sans-serif', fontSize: '9px', color: '#f6f7ef', fontStyle: 'bold', stroke: '#092217', strokeThickness: 3 }).setOrigin(.5, 1);
+    this.goalBanner = this.add.text(0, 0, 'GOAL!', { fontFamily: 'Space Grotesk, sans-serif', fontSize: '34px', fontStyle: 'bold', color: '#d5ff70', stroke: '#082015', strokeThickness: 7 }).setOrigin(.5).setAlpha(0).setDepth(1000);
     this.makeActors();
     this.scale.on('resize', this.handleResize, this);
     this.drawBoard();
+    this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
     this.resetPositions();
     window.footballScene = this;
   }
@@ -82,6 +90,9 @@ class FootballScene extends Phaser.Scene {
     const box = (left,right,top,bottom) => { line([left,top],[right,top]);line([left,top],[left,bottom]);line([right,top],[right,bottom]); };
     box(34,66,0,13); box(40,60,0,6);
     box(34,66,87,100); box(40,60,94,100);
+    // Goal frames on both end lines make the target legible on small screens.
+    const goal=(v, direction)=>{const left=point(45,v),right=point(55,v),backLeft=point(45,v+direction*3),backRight=point(55,v+direction*3);g.lineStyle(Math.max(2,w*.004),0xf4f6ea,.92);g.lineBetween(left.x,left.y,backLeft.x,backLeft.y);g.lineBetween(right.x,right.y,backRight.x,backRight.y);g.lineBetween(backLeft.x,backLeft.y,backRight.x,backRight.y);};
+    goal(0,1);goal(100,-1);
     const spot1=point(50,10),spot2=point(50,90);g.fillStyle(0xe8f5e8,.8);g.fillCircle(spot1.x,spot1.y,2);g.fillCircle(spot2.x,spot2.y,2);
   }
 
@@ -89,6 +100,7 @@ class FootballScene extends Phaser.Scene {
     this.drawBoard();
     for (const actor of Object.values(this.actors)) this.placeActor(actor);
     this.placeBall();
+    this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
   }
 
   makeBall() {
@@ -137,7 +149,21 @@ class FootballScene extends Phaser.Scene {
       ball:{x:38,y:72},
     };
     for(const [id,actor] of Object.entries(this.actors)) { actor.world={...this.world[id]};this.placeActor(actor);this.stopRun(actor); }
+    this.resetPassLabels();
+    this.goalBanner.setAlpha(0).setScale(1);
     this.placeBall();
+  }
+
+  resetPassLabels() {
+    const labels={gk:'MATS',support:'NOAH',wide:'LOU',me:'IK',forward:'BAS',oppGk:'KEEPER',press:'MILO',cover:'JENS',interceptor:'LARS',farDef:'ARNE'};
+    for(const [id,label] of Object.entries(labels))this.actors[id].label.setText(label);
+  }
+
+  resetSpacePositions() {
+    this.world=structuredClone(SPACE_MAKING_SCENARIO.start);
+    for(const [id,actor] of Object.entries(this.actors)){actor.world={...this.world[id]};this.stopRun(actor);this.placeActor(actor);}
+    for(const [id,label] of Object.entries(SPACE_MAKING_SCENARIO.playerLabels))this.actors[id].label.setText(label);
+    this.goalBanner.setAlpha(0).setScale(1);this.placeBall();
   }
 
   placeActor(actor) {
@@ -170,17 +196,40 @@ class FootballScene extends Phaser.Scene {
   }
 
   async showWatchPhase({review=false}={}) {
+    if(this.activeExercise==='run'){return this.showRunWatchPhase({review});}
     this.busy=true;this.resetPositions();
     dom.phase.textContent='KIJK GOED';dom.prompt.textContent='Kijk waar iedereen loopt. De bal komt naar jou.';
     dom.helper.textContent='Kijk naar je ploegmaats én naar de verdedigers.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
     await this.delay(350);
     this.runCycle(this.actors.support);
-    await Promise.all([this.moveBall({x:51,y:55},850,'Sine.easeInOut',true),this.move('wide',{x:82,y:45},650),this.move('forward',{x:64,y:35},700),this.move('press',{x:53,y:59},700),this.move('interceptor',{x:68,y:43},700),this.move('farDef',{x:75,y:53},700)]);
+    await Promise.all([this.moveBall({x:51,y:55},850,'Sine.easeInOut'),this.move('wide',{x:82,y:45},650),this.move('forward',{x:64,y:35},700),this.move('press',{x:53,y:59},700),this.move('interceptor',{x:68,y:43},700),this.move('farDef',{x:75,y:53},700)]);
     this.stopRun(this.actors.support);this.world.ball={x:51,y:55};this.placeBall();
     await this.delay(review?300:450);
     if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Je kan de kijkfase rustig bekijken.';dom.helper.textContent='Tik op “Probeer opnieuw” om zelf een keuze te maken.';this.busy=false;return;}
     dom.phase.textContent='JIJ HEBT DE BAL';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kies binnen 8 seconden. Twee oplossingen kunnen goed zijn.';
     dom.answers.hidden=false;this.beginTimer();this.busy=false;
+  }
+
+  async showRunWatchPhase({review=false}={}) {
+    this.busy=true;this.resetSpacePositions();
+    dom.phase.textContent=review?'KIJK NOG EENS':'KIJK GOED';
+    dom.prompt.textContent='S (9) heeft de bal niet. Hoe kan jij ruimte maken?';
+    dom.helper.textContent='Kijk naar C, RF en de verdediger bij S.';
+    dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
+    await this.delay(300);
+    await Promise.all([
+      this.move('gk',{x:51,y:81},650),this.move('me',{x:57,y:62},550),
+      this.move('wide',{x:81,y:41},650),this.move('support',{x:23,y:58},600),
+      this.move('forward',{x:62,y:27},650),this.move('press',{x:48,y:44},700),
+      this.move('cover',{x:61,y:39},700),this.move('interceptor',{x:56,y:31},700),
+      this.move('farDef',{x:72,y:27},650),this.moveBall({x:57,y:62},650),
+    ]);
+    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk hoe S en de verdediger bewegen.';dom.helper.textContent='Tik op “Probeer opnieuw” om zelf een loopactie te kiezen.';this.busy=false;return;}
+    dom.phase.textContent='JIJ SPEELT ALS S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
+    dom.answers.querySelector('[data-choice="A"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.A.label;
+    dom.answers.querySelector('[data-choice="B"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.B.label;
+    dom.answers.querySelector('[data-choice="C"] .answer-label').textContent='Loop schuin weg';
+    dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';dom.answers.hidden=false;this.beginTimer();this.busy=false;
   }
 
   beginTimer() {
@@ -203,33 +252,54 @@ class FootballScene extends Phaser.Scene {
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
     dom.answers.hidden=true;dom.countdown.textContent='';dom.timerTrack.classList.remove('active');
     if(!choice){dom.phase.textContent='GEEN KEUZE';dom.prompt.textContent='Geen probleem. Kijk nog eens rustig.';dom.helper.textContent='Je kan dezelfde situatie opnieuw proberen.';await this.delay(500);this.showFeedback(null);this.busy=false;return;}
-    dom.phase.textContent='KIJK WAT ER GEBEURT';dom.prompt.textContent={A:'Je speelt naar rechts.',B:'Je speelt centraal.',C:'Je speelt terug.'}[choice];dom.helper.textContent='Volg de bal en kijk hoe de spelers reageren.';
-    if(choice==='A')await this.playA();if(choice==='B')await this.playB();if(choice==='C')await this.playC();
+    dom.phase.textContent='KIJK WAT ER GEBEURT';
+    if(this.activeExercise==='run'){
+      dom.prompt.textContent=SPACE_MAKING_SCENARIO.choices[choice].title;dom.helper.textContent='Volg jouw loopactie en kijk wat de verdediger doet.';
+      await this.playRunChoice(choice);
+    }else{
+      dom.prompt.textContent={A:'Je speelt naar rechts.',B:'Je speelt centraal.',C:'Je speelt terug.'}[choice];dom.helper.textContent='Volg de bal en kijk hoe de spelers reageren.';
+      if(choice==='A')await this.playA();if(choice==='B')await this.playB();if(choice==='C')await this.playC();
+    }
     await this.delay(250);this.showFeedback(choice);this.busy=false;
   }
 
   async playA() {
+    // A short ground pass to Lou keeps the right side wide; Lou continues up
+    // the same flank instead of teleporting across the pitch.
     await Promise.all([
-      this.moveBall({x:82,y:44},1050,'Sine.easeInOut',true),
-      this.move('wide',{x:83,y:43},850),
-      this.move('interceptor',{x:65,y:45},850),
-      this.move('forward',{x:68,y:24},900),
+      this.moveBall({x:78,y:47},820,'Sine.easeInOut'),
+      this.move('wide',{x:78,y:47},720),
+      this.move('interceptor',{x:68,y:45},780),
+      this.move('forward',{x:66,y:29},820),
       this.move('press',{x:55,y:54},650),
-      this.move('farDef',{x:73,y:47},700),
+      this.move('farDef',{x:74,y:48},720),
+      this.move('support',{x:34,y:67},720),
+      this.move('gk',{x:49,y:84},650),
+      this.move('cover',{x:48,y:39},760),
+      this.move('oppGk',{x:50,y:6},650),
     ]);
-    await this.delay(180);
-    await Promise.all([this.move('wide',{x:87,y:38},520),this.moveBall({x:87,y:38},520,'Sine.easeOut')]);
+    // Lou takes two measured touches forward, while the full team shifts with play.
+    await Promise.all([
+      this.move('wide',{x:83,y:42},620),this.moveBall({x:82,y:43},620,'Sine.easeOut'),
+      this.move('interceptor',{x:75,y:42},620),this.move('farDef',{x:78,y:44},620),
+      this.move('me',{x:56,y:51},620),this.move('forward',{x:69,y:27},620),
+      this.move('press',{x:60,y:50},620),this.move('cover',{x:52,y:37},620),
+      this.move('support',{x:31,y:65},620),this.move('gk',{x:48,y:82},620),this.move('oppGk',{x:50,y:5},620),
+    ]);
   }
   async playB() {
     // The central pass is intercepted in view: the defender runs across the ball's
     // path, arrives just ahead of it, then takes the loose ball toward the press.
     const meet={x:57,y:44};
     await Promise.all([
-      this.moveBall(meet,1050,'Linear',true),
+      this.moveBall(meet,1050,'Linear'),
       this.move('interceptor',meet,850,'Sine.easeIn'),
       this.move('forward',{x:62,y:32},620),
       this.move('press',{x:53,y:53},600),
       this.move('cover',{x:46,y:37},760),
+      this.move('wide',{x:79,y:47},760),this.move('support',{x:38,y:70},700),
+      this.move('me',{x:53,y:54},700),this.move('gk',{x:50,y:88},700),
+      this.move('farDef',{x:75,y:52},700),this.move('oppGk',{x:50,y:6},700),
     ]);
     this.ball.setDepth(this.actors.interceptor.container.depth+2);
     await this.delay(180);
@@ -237,27 +307,63 @@ class FootballScene extends Phaser.Scene {
       this.move('interceptor',{x:54,y:50},520,'Sine.easeIn'),
       this.moveBall({x:53,y:51},520,'Sine.easeOut'),
       this.move('press',{x:53,y:52},430),
+      this.move('wide',{x:76,y:45},430),this.move('support',{x:40,y:68},430),
+      this.move('me',{x:55,y:52},430),this.move('gk',{x:50,y:86},430),
+      this.move('cover',{x:48,y:40},430),this.move('farDef',{x:73,y:49},430),this.move('oppGk',{x:50,y:6},430),
     ]);
   }
   async playC() {
+    // A safe return to Noah. Lou remains on the right touchline and offers
+    // width; the rest of the team slides into supporting positions.
     await Promise.all([
-      this.moveBall({x:36,y:73},900,'Sine.easeInOut',true),
-      this.move('support',{x:34,y:70},700),
-      this.move('press',{x:53,y:56},600),
-      this.move('wide',{x:16,y:39},650),
-      this.move('forward',{x:65,y:31},700),
-      this.move('interceptor',{x:67,y:40},650),
-      this.move('farDef',{x:75,y:50},650),
+      this.moveBall({x:39,y:72},780,'Sine.easeInOut'),
+      this.move('support',{x:39,y:72},700),
+      this.move('press',{x:53,y:56},650),
+      this.move('wide',{x:81,y:46},700),
+      this.move('forward',{x:63,y:31},720),
+      this.move('interceptor',{x:66,y:40},680),
+      this.move('farDef',{x:75,y:50},680),
+      this.move('gk',{x:49,y:87},650),this.move('cover',{x:40,y:40},680),this.move('oppGk',{x:50,y:6},650),
     ]);
-    await Promise.all([this.moveBall({x:34,y:70},300,'Sine.easeOut'),this.move('support',{x:34,y:70},300)]);
-    await Promise.all([this.moveBall({x:31,y:66},420),this.move('support',{x:31,y:66},420)]);
+    await Promise.all([
+      this.move('support',{x:34,y:67},420),this.moveBall({x:34,y:67},420,'Sine.easeOut'),
+      this.move('me',{x:52,y:54},420),this.move('wide',{x:82,y:44},420),
+      this.move('forward',{x:64,y:30},420),this.move('press',{x:54,y:53},420),
+      this.move('cover',{x:42,y:41},420),this.move('interceptor',{x:64,y:40},420),
+      this.move('farDef',{x:75,y:49},420),this.move('gk',{x:49,y:86},420),this.move('oppGk',{x:50,y:6},420),
+    ]);
+  }
+
+  async playRunChoice(choice) {
+    if(choice==='A'){
+      await Promise.all([this.move('forward',{x:57,y:39},780),this.move('interceptor',{x:58,y:35},760),this.move('wide',{x:82,y:39},600),this.move('support',{x:22,y:60},620),this.move('me',{x:57,y:61},500),this.move('gk',{x:52,y:80},500),this.move('press',{x:49,y:45},600),this.move('cover',{x:63,y:38},620),this.move('farDef',{x:72,y:26},550),this.move('oppGk',{x:50,y:7},500)]);
+      await Promise.all([this.moveBall({x:57,y:39},620,'Sine.easeOut'),this.move('me',{x:57,y:57},700)]);
+      await Promise.all([this.move('forward',{x:54,y:37},420),this.move('interceptor',{x:56,y:36},420),this.move('wide',{x:83,y:38},420),this.move('cover',{x:61,y:37},420)]);
+    }else if(choice==='B'){
+      await Promise.all([this.move('forward',{x:61,y:24},650),this.move('interceptor',{x:61,y:27},620),this.move('wide',{x:83,y:40},650),this.move('support',{x:21,y:59},650),this.move('me',{x:59,y:58},650),this.move('gk',{x:51,y:79},650),this.move('press',{x:49,y:44},650),this.move('cover',{x:63,y:36},650),this.move('farDef',{x:73,y:25},650),this.move('oppGk',{x:50,y:6},500)]);
+      await Promise.all([this.moveBall({x:82,y:40},760),this.move('wide',{x:82,y:40},700),this.move('farDef',{x:77,y:35},700)]);
+      await Promise.all([this.move('me',{x:63,y:52},480),this.move('forward',{x:62,y:26},480),this.move('interceptor',{x:63,y:29},480)]);
+    }else{
+      // S trekt zijn marker mee. RF start pas naar binnen nadat de ruimte zichtbaar opent.
+      await Promise.all([this.move('forward',{x:43,y:35},760),this.move('interceptor',{x:46,y:33},760),this.move('wide',{x:78,y:39},600),this.move('support',{x:22,y:59},620),this.move('press',{x:51,y:45},620),this.move('cover',{x:62,y:37},650),this.move('farDef',{x:72,y:27},650),this.move('gk',{x:52,y:80},550),this.move('me',{x:58,y:60},550),this.move('oppGk',{x:51,y:6},500)]);
+      await Promise.all([this.move('wide',{x:67,y:34},700),this.moveBall({x:67,y:34},700,'Sine.easeOut'),this.move('me',{x:58,y:57},650),this.move('press',{x:53,y:46},620),this.move('cover',{x:64,y:35},650)]);
+      // RF follows with short touches through the opened right channel, then
+      // shoots from in front of goal. The goalkeeper moves to meet the shot.
+      await Promise.all([this.move('wide',{x:59,y:19},850),this.moveBall({x:59,y:19},850,'Sine.easeInOut'),this.move('forward',{x:46,y:30},700),this.move('interceptor',{x:48,y:31},700),this.move('support',{x:20,y:57},600),this.move('gk',{x:52,y:76},600),this.move('press',{x:56,y:48},720),this.move('cover',{x:60,y:31},720),this.move('farDef',{x:65,y:23},720),this.move('oppGk',{x:52,y:4},700)]);
+      await Promise.all([this.move('wide',{x:57,y:17},430),this.moveBall({x:57,y:17},430,'Sine.easeOut'),this.move('oppGk',{x:52,y:4},430),this.move('interceptor',{x:50,y:25},430),this.move('farDef',{x:60,y:20},430)]);
+      await Promise.all([this.moveBall({x:51,y:1},560,'Sine.easeIn'),this.move('oppGk',{x:48,y:5},430),this.move('wide',{x:57,y:17},430)]);
+      this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.40).setAlpha(1).setScale(.65);
+      this.tweens.add({targets:this.goalBanner,scale:1,duration:350,ease:'Back.Out'});
+      await Promise.all([this.move('wide',{x:58,y:16},360),this.move('forward',{x:55,y:18},360),this.move('me',{x:61,y:48},500),this.move('support',{x:31,y:51},500)]);
+      await this.delay(650);this.goalBanner.setAlpha(0);
+    }
   }
 
   showFeedback(choice) {
-    const data=choice?COPY[choice]:{title:'Probeer het nog eens.',text:'Je hoeft niet snel te zijn. Kijk waar de vrije ruimte is en probeer opnieuw.',mark:'↻',className:'warn'};
-    dom.phase.textContent=choice==='B'?'KIJK NOG EENS':'GOED GEKEKEN';
+    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,mark:'✓',className:''}:COPY[choice]):{title:'Probeer het nog eens.',text:'Je hoeft niet snel te zijn. Kijk waar de vrije ruimte is en probeer opnieuw.',mark:'↻',className:'warn'};
+    dom.phase.textContent=choice==='B'&&this.activeExercise==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
     dom.prompt.textContent=choice?'Wat zag jij gebeuren?':'Neem rustig nog een kijkje.';
-    dom.helper.textContent='Onthoud: kijk vóór je de bal krijgt.';
+    dom.helper.textContent=this.activeExercise==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
     dom.feedbackTitle.textContent=data.title;dom.feedbackText.textContent=data.text;dom.feedbackMark.textContent=data.mark;dom.feedbackMark.className='feedback-mark '+data.className;
     dom.feedback.hidden=false;
   }
@@ -274,7 +380,22 @@ const game=new Phaser.Game({
   scene:[scene],
 });
 
-function begin(){dom.welcome.hidden=true;dom.intro.hidden=true;dom.helper.textContent='Kijk naar je ploegmaats én naar de verdedigers.';game.scene.start('football');setTimeout(()=>{const active=game.scene.getScene('football');active.showWatchPhase();},100);}
+function selectExercise(mode){
+  if(scene.busy)return;
+  scene.activeExercise=mode;
+  const running=mode==='run';
+  dom.passExercise.classList.toggle('selected',!running);dom.runExercise.classList.toggle('selected',running);
+  dom.passExercise.setAttribute('aria-pressed',String(!running));dom.runExercise.setAttribute('aria-pressed',String(running));
+  dom.introTitle.textContent=running?'Maak jij ruimte voor je ploegmaat?':'Zie jij de vrije speler?';
+  dom.introCopy.textContent=running?'Jij speelt S (9). Kijk wat de verdediger doet en kies jouw loopactie.':'Kijk waar je ploegmaats en tegenstanders lopen. De bal komt naar jou. Wat doe jij?';
+  dom.welcomeCopy.textContent=running?'Jij speelt als spits. Kijk naar C, RF en de verdediger bij jou. Kies daarna hoe jij zonder bal beweegt.':'Let op wie vrij staat en waar de verdediger loopt. Daarna kies jij één van de drie oplossingen.';
+  const labels=running?['Kom naar de bal','Blijf diep','Loop schuin weg']:['Speel naar rechts','Speel centraal','Speel terug'];
+  const arrows=running?['↓','↑','↖']:['↗','↑','↙'];
+  ['A','B','C'].forEach((letter,index)=>{const button=dom.answers.querySelector(`[data-choice="${letter}"]`);button.querySelector('.answer-label').textContent=labels[index];button.querySelector('.answer-arrow').textContent=arrows[index];});
+  dom.prompt.textContent=running?'Kies een loopactie wanneer je klaar bent.':'Druk op start wanneer je klaar bent.';
+}
+function begin(){dom.welcome.hidden=true;dom.intro.hidden=true;dom.helper.textContent=scene.activeExercise==='run'?'Kijk naar C, RF en de verdediger bij S.':'Kijk naar je ploegmaats én naar de verdedigers.';game.scene.start('football');setTimeout(()=>{const active=game.scene.getScene('football');active.showWatchPhase();},100);}
+dom.passExercise.addEventListener('click',()=>selectExercise('pass'));dom.runExercise.addEventListener('click',()=>selectExercise('run'));
 dom.start.addEventListener('click',begin);dom.welcomeStart.addEventListener('click',begin);
 dom.answers.addEventListener('click',(event)=>{const button=event.target.closest('[data-choice]');if(button&&!button.disabled)scene.resolveChoice(button.dataset.choice);});
 dom.watchAgain.addEventListener('click',()=>{dom.feedback.hidden=true;scene.showWatchPhase({review:true});});

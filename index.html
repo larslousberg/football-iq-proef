@@ -16,14 +16,18 @@
           <span class="crest">KVC</span>
           <span class="brand-copy"><strong>VOETBALDENKEN</strong><small>KVC BOOISCHOT · U9</small></span>
         </a>
-        <span class="round-pill">ÉÉN OEFENING · 5 TEGEN 5</span>
+        <span class="round-pill">TWEE OEFENINGEN · 5 TEGEN 5</span>
       </header>
 
       <section class="intro" id="intro">
         <div>
           <p class="eyebrow"><span class="eyebrow-dot"></span> KLAAR OM TE KIJKEN?</p>
-          <h1>Zie jij de vrije speler?</h1>
-          <p class="intro-copy">Kijk waar je ploegmaats en tegenstanders lopen. De bal komt naar jou. Wat doe jij?</p>
+          <h1 id="introTitle">Zie jij de vrije speler?</h1>
+          <p class="intro-copy" id="introCopy">Kijk waar je ploegmaats en tegenstanders lopen. De bal komt naar jou. Wat doe jij?</p>
+          <div class="exercise-picker" role="group" aria-label="Kies een oefening">
+            <button class="exercise-option selected" id="passExercise" type="button" aria-pressed="true">⚽ Naar wie speel je?</button>
+            <button class="exercise-option" id="runExercise" type="button" aria-pressed="false">🏃 Maak ruimte zonder bal</button>
+          </div>
         </div>
         <button class="start-button" id="startButton" type="button">Start de oefening <span aria-hidden="true">→</span></button>
       </section>
@@ -65,7 +69,7 @@
         <div class="welcome-badge">⚽</div>
         <p class="eyebrow">KLEINE KIJKTIP</p>
         <h2 id="welcomeTitle">Kijk vóór de bal komt</h2>
-        <p>Let op wie vrij staat en waar de verdediger loopt. Daarna kies jij één van de drie oplossingen.</p>
+        <p id="welcomeCopy">Let op wie vrij staat en waar de verdediger loopt. Daarna kies jij één van de drie oplossingen.</p>
         <button class="start-button welcome-start" id="welcomeStart" type="button">Ik ben klaar <span aria-hidden="true">→</span></button>
       </section>
     </div>
