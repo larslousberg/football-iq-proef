@@ -189,7 +189,7 @@ class FootballScene extends Phaser.Scene {
     if (actor.id === (this.activeExercise === 'run' ? 'forward' : 'me')) this.updateControlMarker();
   }
   placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
-  async delay(ms) { await new Promise(resolve=>this.time.delayedCall(ms,resolve)); }
+  async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
   stopRun(actor) { if(actor.runTween){actor.runTween.remove(false);actor.runTween=null;} actor.leftLeg.setAngle(0);actor.rightLeg.setAngle(0);actor.leftBoot.setY(21);actor.rightBoot.setY(21);actor.armL.setAngle(-.18);actor.armR.setAngle(.18); }
   runCycle(actor) {
     this.stopRun(actor);
