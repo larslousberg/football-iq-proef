@@ -4,11 +4,9 @@ import { SPACE_MAKING_SCENARIO } from './scenarios.js';
 
 const dom = {
   field: document.querySelector('#game'),
-  intro: document.querySelector('#intro'),
   welcome: document.querySelector('#welcomeScrim'),
-  start: document.querySelector('#startButton'),
   welcomeStart: document.querySelector('#welcomeStart'),
-  roleStart: document.querySelector('#roleStart'),
+  roundLabel: document.querySelector('#roundLabel'),
   phase: document.querySelector('#phaseText'),
   prompt: document.querySelector('#prompt'),
   answers: document.querySelector('#answers'),
@@ -19,13 +17,8 @@ const dom = {
   feedbackMark: document.querySelector('#feedbackMark'),
   feedbackTitle: document.querySelector('#feedbackTitle'),
   feedbackText: document.querySelector('#feedbackText'),
-  watchAgain: document.querySelector('#watchAgain'),
-  retry: document.querySelector('#retry'),
+  nextButton: document.querySelector('#nextButton'),
   helper: document.querySelector('#helper'),
-  passExercise: document.querySelector('#passExercise'),
-  runExercise: document.querySelector('#runExercise'),
-  introTitle: document.querySelector('#introTitle'),
-  introCopy: document.querySelector('#introCopy'),
   welcomeCopy: document.querySelector('#welcomeCopy'),
 };
 
@@ -48,7 +41,7 @@ const COPY = {
 };
 
 class FootballScene extends Phaser.Scene {
-  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; }
+  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.currentExerciseIndex = 0; }
 
   create() {
     this.pitch = this.add.graphics();
@@ -143,16 +136,17 @@ class FootballScene extends Phaser.Scene {
   }
 
   makeActors() {
-    this.makeFootballer('gk','home',0xf1f0e7,'MATS',1,true);
-    this.makeFootballer('support','home',0xf1f0e7,'NOAH',6);
-    this.makeFootballer('wide','home',0xf1f0e7,'LOU',7);
-    this.makeFootballer('me','home',0xb4ed47,'IK',8);
-    this.makeFootballer('forward','home',0xf1f0e7,'BAS',9);
+    // Display numbers follow KVC positions; animation code retains stable internal IDs.
+    this.makeFootballer('gk','home',0xf1f0e7,'K',1,true);
+    this.makeFootballer('support','home',0xf1f0e7,'LF',11);
+    this.makeFootballer('wide','home',0xf1f0e7,'RF',7);
+    this.makeFootballer('me','home',0xb4ed47,'C',4);
+    this.makeFootballer('forward','home',0xf1f0e7,'S',9);
     this.makeFootballer('oppGk','away',0x8d514a,'KEEPER',1,true);
-    this.makeFootballer('press','away',0xe75d50,'MILO',4);
-    this.makeFootballer('cover','away',0xe75d50,'JENS',5);
-    this.makeFootballer('interceptor','away',0xe75d50,'LARS',3);
-    this.makeFootballer('farDef','away',0xe75d50,'ARNE',2);
+    this.makeFootballer('press','away',0xe75d50,'T1',1);
+    this.makeFootballer('cover','away',0xe75d50,'T2',2);
+    this.makeFootballer('interceptor','away',0xe75d50,'T3',3);
+    this.makeFootballer('farDef','away',0xe75d50,'T4',4);
   }
 
   resetPositions() {
@@ -169,7 +163,7 @@ class FootballScene extends Phaser.Scene {
   }
 
   resetPassLabels() {
-    const labels={gk:'MATS',support:'NOAH',wide:'LOU',me:'IK',forward:'BAS',oppGk:'KEEPER',press:'MILO',cover:'JENS',interceptor:'LARS',farDef:'ARNE'};
+    const labels={gk:'K (1)',support:'LF (11)',wide:'RF (7)',me:'C (4)',forward:'S (9)',oppGk:'K',press:'T1',cover:'T2',interceptor:'T3',farDef:'T4'};
     for(const [id,label] of Object.entries(labels))this.actors[id].label.setText(label);
   }
 
@@ -220,27 +214,26 @@ class FootballScene extends Phaser.Scene {
     });
   }
 
-  async showWatchPhase({review=false}={}) {
-    if(this.activeExercise==='run'){return this.showRunWatchPhase({review});}
+  async showWatchPhase() {
+    if(this.activeExercise==='run'){return this.showRunWatchPhase();}
     this.busy=true;this.resetPositions();
-    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='Noah speelt naar jou. Kijk om je heen.';
-    dom.helper.textContent='Jij bent IK (8). Kijk naar je ploegmaats en verdedigers.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';dom.roleStart.hidden=true;this.updateControlMarker(true);
+    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='LF (11) speelt naar jou.';
+    dom.helper.textContent='Kijk om je heen.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(350);
     this.runCycle(this.actors.support);
     await Promise.all([this.moveBall({x:51,y:55},850,'Sine.easeInOut'),this.move('wide',{x:82,y:45},650),this.move('forward',{x:64,y:35},700),this.move('press',{x:53,y:59},700),this.move('interceptor',{x:68,y:43},700),this.move('farDef',{x:75,y:53},700)]);
     this.stopRun(this.actors.support);this.world.ball={x:51,y:55};this.placeBall();
-    await this.delay(review?300:450);
-    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk nog eens rustig.';dom.helper.textContent='Tik op de knop om zelf te kiezen.';dom.roleStart.textContent='Start de kijkfase opnieuw';dom.roleStart.hidden=false;this.busy=false;return;}
-    dom.phase.textContent='JIJ BENT IK (8)';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kies een oplossing. Kijk naar de verdedigers.';
+    await this.delay(450);
+    dom.phase.textContent='JIJ BENT C (4)';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kijk naar de verdedigers.';
     await this.revealChoices(8000);
   }
 
-  async showRunWatchPhase({review=false}={}) {
+  async showRunWatchPhase() {
     this.busy=true;this.resetSpacePositions();
-    dom.phase.textContent=review?'KIJK NOG EENS':'KIJK GOED';
-    dom.prompt.textContent='MATS (1) speelt naar C (4).';
-    dom.helper.textContent='Jij bent S (9). Kijk naar RF en de verdediger bij jou.';
-    dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';dom.roleStart.hidden=true;this.updateControlMarker(true);
+    dom.phase.textContent='KIJK GOED';
+    dom.prompt.textContent='K (1) speelt naar C (4).';
+    dom.helper.textContent='Kijk naar RF en de verdediger bij jou.';
+    dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(300);
     await Promise.all([
       this.move('gk',{x:51,y:81},650),this.move('me',{x:57,y:62},550),
@@ -249,7 +242,6 @@ class FootballScene extends Phaser.Scene {
       this.move('cover',{x:61,y:39},700),this.move('interceptor',{x:56,y:31},700),
       this.move('farDef',{x:72,y:27},650),this.moveBall({x:57,y:62},650),
     ]);
-    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk hoe S en de verdediger bewegen.';dom.helper.textContent='Tik op de knop om zelf te kiezen.';dom.roleStart.textContent='Start de kijkfase opnieuw';dom.roleStart.hidden=false;this.busy=false;return;}
     dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
     dom.answers.querySelector('[data-choice="A"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.A.label;
     dom.answers.querySelector('[data-choice="B"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.B.label;
@@ -345,7 +337,7 @@ class FootballScene extends Phaser.Scene {
     ]);
   }
   async playC() {
-    // A safe return to Noah. Lou remains on the right touchline and offers
+    // A safe return pass. RF remains on the right touchline and offers
     // width; the rest of the team slides into supporting positions.
     await Promise.all([
       this.moveBall({x:39,y:72},780,'Sine.easeInOut'),
@@ -392,15 +384,20 @@ class FootballScene extends Phaser.Scene {
   }
 
   showFeedback(choice) {
-    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,mark:'✓',className:''}:COPY[choice]):{title:'Probeer het nog eens.',text:'Je hoeft niet snel te zijn. Kijk waar de vrije ruimte is en probeer opnieuw.',mark:'↻',className:'warn'};
+    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
     dom.phase.textContent=choice==='B'&&this.activeExercise==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
     dom.prompt.textContent=choice?'Wat zag jij gebeuren?':'Neem rustig nog een kijkje.';
     dom.helper.textContent=this.activeExercise==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
     dom.feedbackTitle.textContent=data.title;dom.feedbackText.textContent=data.text;dom.feedbackMark.textContent=data.mark;dom.feedbackMark.className='feedback-mark '+data.className;
     dom.feedback.hidden=false;
+    if(!choice){resultAction='retry';dom.nextButton.textContent='PROBEER OPNIEUW';}
+    else if(this.currentExerciseIndex>=EXERCISE_SEQUENCE.length-1){
+      dom.phase.textContent='KLAAR!';dom.prompt.textContent='Goed gespeeld! Je deed alle oefeningen.';
+      resultAction='replay';dom.nextButton.textContent='SPEEL OPNIEUW';
+    }else{resultAction='next';dom.nextButton.textContent='VOLGENDE OEFENING';}
+    dom.nextButton.hidden=false;
   }
 
-  async restart() { if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}this.busy=false;await this.showWatchPhase(); }
 }
 
 const scene=new FootballScene();
@@ -412,45 +409,38 @@ const game=new Phaser.Game({
   scene:[scene],
 });
 
-function selectExercise(mode){
+// Exercise order stays separate from the opening screen. Add future scenarios here.
+const EXERCISE_SEQUENCE = [
+  {type:'pass', role:'centrale speler (4)', shortRole:'C (4)'},
+  {type:'run', role:'spits (9)', shortRole:'S (9)'},
+];
+let resultAction='next';
+
+async function beginExercise(index) {
+  if(index<0||index>=EXERCISE_SEQUENCE.length)return;
+  scene.busy=true;scene.currentExerciseIndex=index;
+  const exercise=EXERCISE_SEQUENCE[index];scene.activeExercise=exercise.type;
+  dom.roundLabel.textContent=`OEFENING ${index+1} / ${EXERCISE_SEQUENCE.length}`;
+  dom.answers.hidden=true;dom.feedback.hidden=true;dom.nextButton.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
+  if(exercise.type==='run')scene.resetSpacePositions();else scene.resetPositions();
+  dom.phase.textContent=`JIJ BENT ${exercise.shortRole}`;
+  dom.prompt.textContent=`Jij bent ${exercise.role}.`;
+  dom.helper.textContent='Zoek de groene cirkel met JIJ.';
+  for(let count=3;count>0;count--){dom.countdown.textContent=String(count);await scene.delay(1000);}
+  dom.countdown.textContent='';
+  if(exercise.type==='run')await scene.showRunWatchPhase();else await scene.showWatchPhase();
+}
+
+function continueSequence() {
   if(scene.busy)return;
-  scene.activeExercise=mode;
-  scene.updateControlMarker(true);
-  const running=mode==='run';
-  dom.passExercise.classList.toggle('selected',!running);dom.runExercise.classList.toggle('selected',running);
-  dom.passExercise.setAttribute('aria-pressed',String(!running));dom.runExercise.setAttribute('aria-pressed',String(running));
-  dom.introTitle.textContent=running?'Maak jij ruimte voor je ploegmaat?':'Zie jij de vrije speler?';
-  dom.introCopy.textContent=running?'Jij speelt S (9). Kijk wat de verdediger doet en kies jouw loopactie.':'Kijk waar je ploegmaats en tegenstanders lopen. De bal komt naar jou. Wat doe jij?';
-  dom.welcomeCopy.textContent=running?'Jij speelt als spits. Kijk naar C, RF en de verdediger bij jou. Kies daarna hoe jij zonder bal beweegt.':'Let op wie vrij staat en waar de verdediger loopt. Daarna kies jij één van de drie oplossingen.';
-  const labels=running?['Kom naar de bal','Blijf diep','Loop schuin weg']:['Speel naar rechts','Speel centraal','Speel terug'];
-  const arrows=running?['↓','↑','↖']:['↗','↑','↙'];
-  ['A','B','C'].forEach((letter,index)=>{const button=dom.answers.querySelector(`[data-choice="${letter}"]`);button.querySelector('.answer-label').textContent=labels[index];button.querySelector('.answer-arrow').textContent=arrows[index];});
-  dom.prompt.textContent=running?'Kies een loopactie wanneer je klaar bent.':'Druk op start wanneer je klaar bent.';
+  dom.feedback.hidden=true;dom.nextButton.hidden=true;
+  if(resultAction==='retry')beginExercise(scene.currentExerciseIndex);
+  else if(resultAction==='replay')beginExercise(0);
+  else beginExercise(scene.currentExerciseIndex+1);
 }
-function beginRoleIntro(){
-  dom.intro.hidden=true;
-  dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
-  if(scene.activeExercise==='run'){
-    scene.resetSpacePositions();
-    dom.phase.textContent='WIE SPEEL JIJ?';dom.prompt.textContent='Jij bent de spits (9).';
-    dom.helper.textContent='Zoek S (9) met de groene cirkel. De keeper heeft de bal.';
-  }else{
-    scene.resetPositions();
-    dom.phase.textContent='WIE SPEEL JIJ?';dom.prompt.textContent='Jij bent IK (8).';
-    dom.helper.textContent='Zoek IK (8) met de groene cirkel. Noah heeft de bal.';
-  }
-  scene.updateControlMarker(true);
-  dom.roleStart.textContent='Start de kijkfase';dom.roleStart.hidden=false;
-}
-function startWatchPhase(){
-  if(scene.busy)return;
-  dom.roleStart.hidden=true;
-  if(scene.activeExercise==='run')scene.showRunWatchPhase();else scene.showWatchPhase();
-}
-dom.passExercise.addEventListener('click',()=>selectExercise('pass'));dom.runExercise.addEventListener('click',()=>selectExercise('run'));
-dom.start.addEventListener('click',beginRoleIntro);dom.welcomeStart.addEventListener('click',()=>{dom.welcome.hidden=true;});dom.roleStart.addEventListener('click',startWatchPhase);
+
+dom.welcomeStart.addEventListener('click',()=>{dom.welcome.hidden=true;beginExercise(0);});
+dom.nextButton.addEventListener('click',continueSequence);
 dom.answers.addEventListener('click',(event)=>{const button=event.target.closest('[data-choice]');if(button&&!button.disabled)scene.resolveChoice(button.dataset.choice);});
-dom.watchAgain.addEventListener('click',()=>{dom.feedback.hidden=true;scene.showWatchPhase({review:true});});
-dom.retry.addEventListener('click',()=>{dom.feedback.hidden=true;scene.restart();});
 
 if('serviceWorker' in navigator && import.meta.env.PROD){window.addEventListener('load',()=>navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`,{scope:import.meta.env.BASE_URL}).catch(()=>{}));}

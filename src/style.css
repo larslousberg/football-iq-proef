@@ -60,6 +60,8 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
 .feedback-actions { grid-column:1/-1;display:flex;gap:10px;margin-top:3px; }
 .secondary-button { flex:1;border:1px solid #ffffff26;border-radius:11px;background:#0d2016;padding:12px 10px;font-size:12px;font-weight:700; }
 .primary-button { flex:1;border-radius:11px;padding:12px 10px;font-size:12px; }
+.next-button { width:100%;min-height:50px;font-size:14px; }
+.next-button[hidden] { display:none; }
 .footer { min-height:39px;display:flex;align-items:center;gap:17px;padding:0 8px;color:#91a595;font-size:9px;font-weight:800;letter-spacing:.1em; }
 .team-key { display:flex;align-items:center;gap:6px;white-space:nowrap; }
 .team-key i { width:9px;height:9px;border-radius:50%;display:inline-block; }
@@ -113,6 +115,7 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .feedback-copy p { font-size:11px;line-height:1.35; }
   .feedback-actions { gap:7px; }
   .secondary-button,.primary-button { padding:10px 7px;font-size:10px;border-radius:9px; }
+  .next-button { min-height:50px;font-size:13px; }
   .footer { min-height:30px;gap:11px;padding:0 3px;font-size:8px; }
   .footer-note { font-size:9px; }
 }

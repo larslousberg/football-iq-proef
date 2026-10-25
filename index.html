@@ -16,21 +16,8 @@
           <span class="crest">KVC</span>
           <span class="brand-copy"><strong>VOETBALDENKEN</strong><small>KVC BOOISCHOT · U9</small></span>
         </a>
-        <span class="round-pill">TWEE OEFENINGEN · 5 TEGEN 5</span>
+        <span class="round-pill" id="roundLabel">TWEE OEFENINGEN · 5 TEGEN 5</span>
       </header>
-
-      <section class="intro" id="intro">
-        <div>
-          <p class="eyebrow"><span class="eyebrow-dot"></span> KLAAR OM TE KIJKEN?</p>
-          <h1 id="introTitle">Zie jij de vrije speler?</h1>
-          <p class="intro-copy" id="introCopy">Kijk waar je ploegmaats en tegenstanders lopen. De bal komt naar jou. Wat doe jij?</p>
-          <div class="exercise-picker" role="group" aria-label="Kies een oefening">
-            <button class="exercise-option selected" id="passExercise" type="button" aria-pressed="true">⚽ Naar wie speel je?</button>
-            <button class="exercise-option" id="runExercise" type="button" aria-pressed="false">🏃 Maak ruimte zonder bal</button>
-          </div>
-        </div>
-        <button class="start-button" id="startButton" type="button">Toon mijn speler <span aria-hidden="true">→</span></button>
-      </section>
 
       <section class="game-shell" aria-label="Voetbaloefening">
         <div class="field-frame" id="fieldFrame">
@@ -44,7 +31,6 @@
             <div class="lesson-prompt" id="prompt">Druk op start wanneer je klaar bent.</div>
             <div class="countdown" id="countdown" aria-live="polite"></div>
           </div>
-          <button class="role-start" id="roleStart" type="button" hidden>Ik zie mijn speler — start de kijkfase</button>
           <div class="timer-track" id="timerTrack" aria-hidden="true"><div id="timerFill"></div></div>
           <div class="answers" id="answers" hidden>
             <button class="answer" data-choice="A" type="button"><span class="letter">A</span><span class="answer-label">Speel naar rechts</span><span class="answer-arrow">↗</span></button>
@@ -55,8 +41,7 @@
             <div class="feedback-mark" id="feedbackMark">✓</div>
             <div class="feedback-copy"><h2 id="feedbackTitle"></h2><p id="feedbackText"></p></div>
             <div class="feedback-actions">
-              <button class="secondary-button" id="watchAgain" type="button">Bekijk situatie opnieuw</button>
-              <button class="primary-button" id="retry" type="button">Probeer opnieuw <span aria-hidden="true">↻</span></button>
+              <button class="primary-button next-button" id="nextButton" type="button" hidden>VOLGENDE OEFENING</button>
             </div>
           </section>
           <p class="helper" id="helper">Je mag rustig kijken. De bal komt naar jou.</p>
@@ -69,9 +54,9 @@
       <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
         <div class="welcome-badge">⚽</div>
         <p class="eyebrow">KLEINE KIJKTIP</p>
-        <h2 id="welcomeTitle">Kijk vóór de bal komt</h2>
-        <p id="welcomeCopy">Kies eerst je oefening. Daarna tonen we welke speler jij bent.</p>
-        <button class="start-button welcome-start" id="welcomeStart" type="button">Kies een oefening <span aria-hidden="true">→</span></button>
+        <h2 id="welcomeTitle">Kijk vóór je speelt!</h2>
+        <p id="welcomeCopy">Kijk naar de spelers en kies wat jij zou doen. Klaar? We beginnen!</p>
+        <button class="start-button welcome-start" id="welcomeStart" type="button">START MET SPELEN <span aria-hidden="true">→</span></button>
       </section>
     </div>
 
