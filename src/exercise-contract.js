@@ -76,7 +76,7 @@ export function validatePassTargets(scenario) {
   const errors = [];
   if (!hasExactChoices(scenario?.passTargets)) return ['De passoefening moet precies drie ontvangstroutes A, B en C bevatten.'];
   const { watch, passTargets } = scenario;
-  if (passTargets.A.receiver !== 'wide' || !samePoint(watch.ball, watch.me)) errors.push('Pass A moet vertrekken bij C (4) en RF (7) op diens rechterpositie bereiken.');
+  if (passTargets.A.receiver !== 'wide' || !inField(watch[passTargets.A.receiver]) || watch[passTargets.A.receiver]?.x <= 50 || !samePoint(watch.ball, watch.me)) errors.push('Pass A moet vertrekken bij C (4) en RF (7) op diens rechterpositie bereiken.');
   if (passTargets.C.receiver !== 'support' || !inField(passTargets.C.reception) || passTargets.C.reception.x >= 50) errors.push('Pass C moet LF (11) links van het veld bereiken.');
   if (passTargets.B.receiver !== 'forward' || !inField(passTargets.B.interception)) errors.push('Pass B moet richting S (9) gaan en een geldige onderscheppositie hebben.');
   else {

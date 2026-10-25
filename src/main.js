@@ -316,7 +316,7 @@ class FootballScene extends Phaser.Scene {
     const receiver=PASS_SCENARIO.watch[PASS_SCENARIO.passTargets.A.receiver];
     await Promise.all([
       this.moveBall(receiver,1150,'Sine.easeInOut'),
-      this.move(PASS_SCENARIO.passTargets.A.receiver,1150),
+      this.move(PASS_SCENARIO.passTargets.A.receiver,receiver,1150),
       this.move('interceptor',{x:59,y:41},850),
       this.move('forward',{x:53,y:24},700),
       this.move('press',{x:52,y:49},850),
