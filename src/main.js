@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
-import { PASS_SCENARIO, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { EXERCISE_SEQUENCE, PASS_SCENARIO, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { validateExerciseSequence } from './exercise-contract.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -44,8 +45,11 @@ const COPY = {
   },
 };
 
+const exerciseContractErrors = validateExerciseSequence(EXERCISE_SEQUENCE);
+if (exerciseContractErrors.length) throw new Error(`Ongeldige oefenreeks: ${exerciseContractErrors.join(' ')}`);
+
 class FootballScene extends Phaser.Scene {
-  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.currentExerciseIndex = 0; }
+  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; }
 
   create() {
     this.pitch = this.add.graphics();
@@ -106,7 +110,7 @@ class FootballScene extends Phaser.Scene {
 
   updateControlMarker(visible=this.controlRing.visible) {
     if (!this.controlRing || !this.controlTag) return;
-    const actor = this.actors[this.activeExercise === 'run' ? 'forward' : 'me'];
+    const actor = this.actors[this.activeControllerId];
     if (!actor) return;
     const p = this.project(actor.world.x, actor.world.y);
     this.controlRing.setPosition(p.x, p.y + 9 * p.s).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
@@ -167,6 +171,13 @@ class FootballScene extends Phaser.Scene {
     for(const [id,label] of Object.entries(labels))this.actors[id].label.setText(label);
   }
 
+  setChoiceLabels(exercise) {
+    for (const [choice, label] of Object.entries(exercise.choiceLabels)) {
+      const target = dom.answers.querySelector(`[data-choice="${choice}"] .answer-label`);
+      if (target) target.textContent = label;
+    }
+  }
+
   resetSpacePositions() {
     this.world=structuredClone(SPACE_MAKING_SCENARIO.start);
     for(const [id,actor] of Object.entries(this.actors)){actor.world={...this.world[id]};this.stopRun(actor);this.placeActor(actor);}
@@ -180,7 +191,7 @@ class FootballScene extends Phaser.Scene {
     actor.container.setPosition(p.x,p.y).setScale(p.s);actor.container.setDepth(p.y);
     actor.label.setPosition(p.x,p.y+21*p.s).setScale(p.s).setDepth(p.y+1);
     actor.baseScale=p.s;
-    if (actor.id === (this.activeExercise === 'run' ? 'forward' : 'me')) this.updateControlMarker();
+    if (actor.id === this.activeControllerId) this.updateControlMarker();
   }
   placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
@@ -215,8 +226,9 @@ class FootballScene extends Phaser.Scene {
   }
 
   async showWatchPhase() {
-    if(this.activeExercise==='run'){return this.showRunWatchPhase();}
+    if(this.activeExerciseDefinition?.type==='run'){return this.showRunWatchPhase();}
     this.busy=true;this.resetPositions();
+    this.setChoiceLabels(this.activeExerciseDefinition);
     dom.phase.textContent='KIJK GOED';dom.prompt.textContent='LF (11) speelt naar jou.';
     dom.helper.textContent='Kijk om je heen.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(350);
@@ -231,7 +243,9 @@ class FootballScene extends Phaser.Scene {
   }
 
   async showRunWatchPhase() {
+    if(this.activeExerciseDefinition?.type!=='run')throw new Error('De loopkijkfase hoort alleen bij een loopoefening.');
     this.busy=true;this.resetSpacePositions();
+    this.setChoiceLabels(this.activeExerciseDefinition);
     dom.phase.textContent='KIJK GOED';
     dom.prompt.textContent='K (1) speelt naar C (4).';
     dom.helper.textContent='Kijk naar RF en de verdediger bij jou.';
@@ -242,9 +256,6 @@ class FootballScene extends Phaser.Scene {
       this.moveBall(SPACE_MAKING_SCENARIO.watch.ball,650),
     ]);
     dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
-    dom.answers.querySelector('[data-choice="A"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.A.label;
-    dom.answers.querySelector('[data-choice="B"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.B.label;
-    dom.answers.querySelector('[data-choice="C"] .answer-label').textContent='Loop schuin weg';
     dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';await this.revealChoices(10000);
   }
 
@@ -271,12 +282,14 @@ class FootballScene extends Phaser.Scene {
   }
 
   async resolveChoice(choice) {
+    const exercise=this.activeExerciseDefinition;
+    if(!exercise||exercise.type!==this.activeExercise||!['A','B','C'].includes(choice)){console.error('Keuze geweigerd: oefeningstype en actieve keuzes komen niet overeen.');return;}
     if(this.busy)return;this.busy=true;
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
     dom.answers.hidden=true;dom.countdown.textContent='';dom.timerTrack.classList.remove('active');
     if(!choice){dom.phase.textContent='GEEN KEUZE';dom.prompt.textContent='Geen probleem. Kijk nog eens rustig.';dom.helper.textContent='Je kan dezelfde situatie opnieuw proberen.';await this.delay(500);this.showFeedback(null);this.busy=false;return;}
     dom.phase.textContent='KIJK WAT ER GEBEURT';
-    if(this.activeExercise==='run'){
+    if(exercise.type==='run'){
       dom.prompt.textContent=SPACE_MAKING_SCENARIO.choices[choice].title;dom.helper.textContent='Volg jouw loopactie en kijk wat de verdediger doet.';
       await this.playRunChoice(choice);
     }else{
@@ -383,10 +396,11 @@ class FootballScene extends Phaser.Scene {
   }
 
   showFeedback(choice) {
-    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,points:SPACE_MAKING_SCENARIO.choices[choice].points,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
-    dom.phase.textContent=choice==='B'&&this.activeExercise==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
+    const exercise=this.activeExerciseDefinition;
+    const data=choice?(exercise.type==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,points:SPACE_MAKING_SCENARIO.choices[choice].points,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
+    dom.phase.textContent=choice==='B'&&exercise.type==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
     dom.prompt.textContent=choice?'Wat zag jij gebeuren?':'Neem rustig nog een kijkje.';
-    dom.helper.textContent=this.activeExercise==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
+    dom.helper.textContent=exercise.type==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
     dom.feedbackTitle.textContent=data.title;dom.feedbackText.textContent=data.text;dom.feedbackMark.textContent=data.mark;dom.feedbackMark.className='feedback-mark '+data.className;
     if(choice){roundScore+=data.points;const finalExercise=this.currentExerciseIndex>=EXERCISE_SEQUENCE.length-1;dom.scoreSummary.textContent=finalExercise?`+${data.points} spelpunten · Eindscore: ${roundScore} spelpunten`:`+${data.points} spelpunten · Totaal: ${roundScore} spelpunten`;dom.scoreSummary.hidden=false;}
     else{dom.scoreSummary.hidden=true;dom.scoreSummary.textContent='';}
@@ -411,17 +425,14 @@ const game=new Phaser.Game({
 });
 
 // Exercise order stays separate from the opening screen. Add future scenarios here.
-const EXERCISE_SEQUENCE = [
-  {type:'pass', role:'centrale speler (4)', shortRole:'C (4)'},
-  {type:'run', role:'spits (9)', shortRole:'S (9)'},
-];
 let resultAction='next';
 let roundScore=0;
 
 async function beginExercise(index) {
   if(index<0||index>=EXERCISE_SEQUENCE.length)return;
   scene.busy=true;scene.currentExerciseIndex=index;
-  const exercise=EXERCISE_SEQUENCE[index];scene.activeExercise=exercise.type;
+  const exercise=EXERCISE_SEQUENCE[index];scene.activeExercise=exercise.type;scene.activeExerciseDefinition=exercise;scene.activeControllerId=exercise.controllerId;
+  scene.setChoiceLabels(exercise);
   dom.roundLabel.textContent=`OEFENING ${index+1} / ${EXERCISE_SEQUENCE.length}`;
   dom.answers.hidden=true;dom.feedback.hidden=true;dom.nextButton.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
   if(exercise.type==='run')scene.resetSpacePositions();else scene.resetPositions();

@@ -42,7 +42,25 @@ export const SPACE_MAKING_SCENARIO = {
       feedback: 'Je werd kort aanspeelbaar. De verdediger kwam mee; kijk welke ruimte achter hem ontstond.' },
     B: { label: 'Blijf diep', points: 50, title: 'Je houdt de verdediger bezig.',
       feedback: 'Je bleef hoog en hield de verdediger bij het doel. RF bleef breed en C kon vooruit kijken.' },
-    C: { label: 'Lok de verdediger mee', points: 100, title: 'Je maakt ruimte met je loopactie.',
+    C: { label: 'Loop schuin weg', points: 100, title: 'Je maakt ruimte met je loopactie.',
       feedback: 'Je lokte de verdediger naar links. Daardoor kwam rechts ruimte voor RF. Mooi gezien!' },
   },
 };
+
+// Eén centrale reeks houdt speler, keuze-etiketten en afhandeling per oefening bij elkaar.
+export const EXERCISE_SEQUENCE = [
+  {
+    id: 'pass-centrale-speler', type: 'pass', role: 'centrale speler (4)', shortRole: 'C (4)',
+    controllerId: 'me', ballCarrierId: 'me',
+    choiceLabels: { A: 'Speel naar rechts', B: 'Speel centraal', C: 'Speel terug' },
+  },
+  {
+    id: SPACE_MAKING_SCENARIO.id, type: 'run', role: 'spits (9)', shortRole: 'S (9)',
+    controllerId: 'forward', ballCarrierId: 'me',
+    choiceLabels: {
+      A: SPACE_MAKING_SCENARIO.choices.A.label,
+      B: SPACE_MAKING_SCENARIO.choices.B.label,
+      C: SPACE_MAKING_SCENARIO.choices.C.label,
+    },
+  },
+];
