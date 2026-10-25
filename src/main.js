@@ -56,8 +56,8 @@ class FootballScene extends Phaser.Scene {
     this.ballLabel = this.add.text(0, 0, 'BAL', { fontFamily: 'DM Sans, sans-serif', fontSize: '9px', color: '#f6f7ef', fontStyle: 'bold', stroke: '#092217', strokeThickness: 3 }).setOrigin(.5, 1);
     this.goalBanner = this.add.text(0, 0, 'GOAL!', { fontFamily: 'Space Grotesk, sans-serif', fontSize: '34px', fontStyle: 'bold', color: '#d5ff70', stroke: '#082015', strokeThickness: 7 }).setOrigin(.5).setAlpha(0).setDepth(1000);
     this.makeActors();
-    this.controlRing = this.add.ellipse(0, 0, 38, 24, 0xb3f34a, .12).setStrokeStyle(3, 0xd5ff70, 1).setDepth(0);
-    this.controlTag = this.add.text(0, 0, 'JIJ', { fontFamily: 'DM Sans, sans-serif', fontSize: '10px', fontStyle: 'bold', color: '#14200d', backgroundColor: '#d5ff70', padding: { x: 5, y: 2 } }).setOrigin(.5, 1).setDepth(1);
+    this.controlRing = this.add.ellipse(0, 0, 52, 34, 0xb3f34a, .10).setStrokeStyle(4, 0xd5ff70, 1).setDepth(0);
+    this.controlTag = this.add.text(0, 0, 'JIJ', { fontFamily: 'DM Sans, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#14200d', backgroundColor: '#d5ff70', padding: { x: 6, y: 3 } }).setOrigin(.5, 1).setDepth(1);
     this.scale.on('resize', this.handleResize, this);
     this.drawBoard();
     this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
@@ -112,8 +112,8 @@ class FootballScene extends Phaser.Scene {
     const actor = this.actors[this.activeExercise === 'run' ? 'forward' : 'me'];
     if (!actor) return;
     const p = this.project(actor.world.x, actor.world.y);
-    this.controlRing.setPosition(p.x, p.y + 10 * p.s).setScale(p.s).setDepth(p.y - 1).setVisible(visible);
-    this.controlTag.setPosition(p.x, p.y - 23 * p.s).setScale(p.s).setDepth(p.y + 1).setVisible(visible);
+    this.controlRing.setPosition(p.x, p.y + 9 * p.s).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
+    this.controlTag.setPosition(p.x, p.y - 25 * p.s).setScale(p.s).setDepth(p.y + 2).setVisible(visible);
   }
 
   makeBall() {

@@ -12,6 +12,7 @@ button { color:inherit; font:inherit; cursor:pointer; -webkit-tap-highlight-colo
 .brand-copy small { color:#a6b3a7; font-size:9px; letter-spacing:.17em; }
 .round-pill { border:1px solid var(--edge); border-radius:99px; padding:8px 12px; color:#c8d3c9; font-size:10px; font-weight:700; letter-spacing:.11em; white-space:nowrap; }
 .intro { display:flex; align-items:end; justify-content:space-between; gap:24px; padding:22px 4px 18px; }
+.intro[hidden] { display:none; }
 .eyebrow { margin:0 0 9px; display:flex; align-items:center; gap:8px; font-size:10px; font-weight:800; color:#c5ef8c; letter-spacing:.18em; }
 .eyebrow-dot,.pulse { display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 11px #b3f3498c; }
 h1,h2,p { margin-top:0; }
