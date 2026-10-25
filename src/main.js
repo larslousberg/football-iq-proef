@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { PASS_SCENARIO, SPACE_MAKING_SCENARIO } from './scenarios.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -17,6 +17,7 @@ const dom = {
   feedbackMark: document.querySelector('#feedbackMark'),
   feedbackTitle: document.querySelector('#feedbackTitle'),
   feedbackText: document.querySelector('#feedbackText'),
+  scoreSummary: document.querySelector('#scoreSummary'),
   nextButton: document.querySelector('#nextButton'),
   helper: document.querySelector('#helper'),
   welcomeCopy: document.querySelector('#welcomeCopy'),
@@ -25,17 +26,20 @@ const dom = {
 const COPY = {
   A: {
     title: 'Goed gezien! Je speelde vooruit.',
-    text: 'De speler rechts had ruimte. De verdediger stond te ver weg om de bal te pakken. Zo kom je met je ploeg dichter bij het doel.',
+    text: 'Rechterflank (7) had ruimte. De verdediger stond te ver weg om de bal te pakken. Zo kom je met je ploeg dichter bij het doel.',
+    points: 100,
     mark: '✓', className: '',
   },
   B: {
     title: 'De verdediger kwam ertussen.',
     text: 'Je ploegmaat leek vrij, maar een verdediger liep de passlijn in. Kijk nog eens naar die loopactie. Wat zie je nu?',
+    points: 20,
     mark: '↗', className: 'retry-mark',
   },
   C: {
     title: 'Slim en veilig gespeeld.',
     text: 'Je hield de bal bij je ploeg. Goed dat je de steun achter je zag. Kijk een volgende keer ook of je vooruit kunt spelen.',
+    points: 50,
     mark: '✓', className: '',
   },
 };
@@ -117,7 +121,7 @@ class FootballScene extends Phaser.Scene {
     c.setDepth(100); return c;
   }
 
-  makeFootballer(id, team, kit, name, number, keeper=false) {
+  makeFootballer(id, team, kit, displayLabel, number, keeper=false) {
     const c=this.add.container(0,0);
     const shadow=this.add.ellipse(0,11,31,11,0x04160c,.36);
     const leftLeg=this.add.rectangle(-5,7,6,15,team==='home'?0xf3f4e8:0xa82f2c).setOrigin(.5,.05).setStrokeStyle(1,0x122118,.35);
@@ -130,8 +134,8 @@ class FootballScene extends Phaser.Scene {
     const hair=this.add.ellipse(0,-18,13,6,team==='home'?0x49392c:0x38271f);
     const numberText=this.add.text(0,-2,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:'8px',fontStyle:'bold',color:team==='home'?'#132218':'#fff6ee'}).setOrigin(.5);
     c.add([shadow,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,body,stripe,head,hair,numberText]);
-    const label=this.add.text(0,0,name,{fontFamily:'DM Sans,sans-serif',fontSize:'10px',fontStyle:'bold',color:team==='home'?'#f4f7e9':'#ffd7d1',stroke:'#102719',strokeThickness:3}).setOrigin(.5,0);
-    const actor={id,team,name,keeper,container:c,label,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,numberText,runTween:null,world:{x:50,y:50},baseScale:1};
+    const label=this.add.text(0,0,displayLabel,{fontFamily:'DM Sans,sans-serif',fontSize:'10px',fontStyle:'bold',color:team==='home'?'#f4f7e9':'#ffd7d1',stroke:'#102719',strokeThickness:3}).setOrigin(.5,0);
+    const actor={id,team,displayLabel,keeper,container:c,label,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,numberText,runTween:null,world:{x:50,y:50},baseScale:1};
     this.actors[id]=actor; return actor;
   }
 
@@ -150,11 +154,7 @@ class FootballScene extends Phaser.Scene {
   }
 
   resetPositions() {
-    this.world={
-      gk:{x:50,y:91},support:{x:38,y:72},wide:{x:79,y:48},me:{x:51,y:55},forward:{x:61,y:34},
-      oppGk:{x:50,y:5},press:{x:54,y:62},cover:{x:38,y:39},interceptor:{x:72,y:42},farDef:{x:78,y:58},
-      ball:{x:38,y:72},
-    };
+    this.world=structuredClone(PASS_SCENARIO.start);
     for(const [id,actor] of Object.entries(this.actors)) { actor.world={...this.world[id]};this.placeActor(actor);this.stopRun(actor); }
     this.updateControlMarker(true);
     this.resetPassLabels();
@@ -220,9 +220,11 @@ class FootballScene extends Phaser.Scene {
     dom.phase.textContent='KIJK GOED';dom.prompt.textContent='LF (11) speelt naar jou.';
     dom.helper.textContent='Kijk om je heen.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(350);
-    this.runCycle(this.actors.support);
-    await Promise.all([this.moveBall({x:51,y:55},850,'Sine.easeInOut'),this.move('wide',{x:82,y:45},650),this.move('forward',{x:64,y:35},700),this.move('press',{x:53,y:59},700),this.move('interceptor',{x:68,y:43},700),this.move('farDef',{x:75,y:53},700)]);
-    this.stopRun(this.actors.support);this.world.ball={x:51,y:55};this.placeBall();
+    await Promise.all([
+      this.moveBall(PASS_SCENARIO.watch.ball,850,'Sine.easeInOut'),
+      ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,PASS_SCENARIO.watch[id],650)),
+    ]);
+    this.world.ball={...PASS_SCENARIO.watch.ball};this.placeBall();
     await this.delay(450);
     dom.phase.textContent='JIJ BENT C (4)';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kijk naar de verdedigers.';
     await this.revealChoices(8000);
@@ -236,11 +238,8 @@ class FootballScene extends Phaser.Scene {
     dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(300);
     await Promise.all([
-      this.move('gk',{x:51,y:81},650),this.move('me',{x:57,y:62},550),
-      this.move('wide',{x:81,y:41},650),this.move('support',{x:23,y:58},600),
-      this.move('forward',{x:62,y:27},650),this.move('press',{x:48,y:44},700),
-      this.move('cover',{x:61,y:39},700),this.move('interceptor',{x:56,y:31},700),
-      this.move('farDef',{x:72,y:27},650),this.moveBall({x:57,y:62},650),
+      ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,SPACE_MAKING_SCENARIO.watch[id],650)),
+      this.moveBall(SPACE_MAKING_SCENARIO.watch.ball,650),
     ]);
     dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
     dom.answers.querySelector('[data-choice="A"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.A.label;
@@ -281,15 +280,14 @@ class FootballScene extends Phaser.Scene {
       dom.prompt.textContent=SPACE_MAKING_SCENARIO.choices[choice].title;dom.helper.textContent='Volg jouw loopactie en kijk wat de verdediger doet.';
       await this.playRunChoice(choice);
     }else{
-      dom.prompt.textContent={A:'Je speelt naar rechts.',B:'Je speelt centraal.',C:'Je speelt terug.'}[choice];dom.helper.textContent='Volg de bal en kijk hoe de spelers reageren.';
+      dom.prompt.textContent={A:'Je speelt naar RF (7).',B:'Je speelt naar S (9).',C:'Je speelt terug naar LF (11).'}[choice];dom.helper.textContent='Volg de bal en kijk hoe de spelers reageren.';
       if(choice==='A')await this.playA();if(choice==='B')await this.playB();if(choice==='C')await this.playC();
     }
     await this.delay(250);this.showFeedback(choice);this.busy=false;
   }
 
   async playA() {
-    // A short ground pass to Lou keeps the right side wide; Lou continues up
-    // the same flank instead of teleporting across the pitch.
+    // RF (7) receives on the right and continues up the same flank.
     await Promise.all([
       this.moveBall({x:78,y:47},820,'Sine.easeInOut'),
       this.move('wide',{x:78,y:47},720),
@@ -302,7 +300,7 @@ class FootballScene extends Phaser.Scene {
       this.move('cover',{x:48,y:39},760),
       this.move('oppGk',{x:50,y:6},650),
     ]);
-    // Lou takes two measured touches forward, while the full team shifts with play.
+    // RF (7) takes two measured touches forward while the full team shifts.
     await Promise.all([
       this.move('wide',{x:83,y:42},620),this.moveBall({x:82,y:43},620,'Sine.easeOut'),
       this.move('interceptor',{x:75,y:42},620),this.move('farDef',{x:78,y:44},620),
@@ -314,7 +312,8 @@ class FootballScene extends Phaser.Scene {
   async playB() {
     // The central pass is intercepted in view: the defender runs across the ball's
     // path, arrives just ahead of it, then takes the loose ball toward the press.
-    const meet={x:57,y:44};
+    // The intended receiver is S (9); T3 crosses the actual central pass lane.
+    const meet={x:51,y:43};
     await Promise.all([
       this.moveBall(meet,1050,'Linear'),
       this.move('interceptor',meet,850,'Sine.easeIn'),
@@ -384,11 +383,13 @@ class FootballScene extends Phaser.Scene {
   }
 
   showFeedback(choice) {
-    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
+    const data=choice?(this.activeExercise==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,points:SPACE_MAKING_SCENARIO.choices[choice].points,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
     dom.phase.textContent=choice==='B'&&this.activeExercise==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
     dom.prompt.textContent=choice?'Wat zag jij gebeuren?':'Neem rustig nog een kijkje.';
     dom.helper.textContent=this.activeExercise==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
     dom.feedbackTitle.textContent=data.title;dom.feedbackText.textContent=data.text;dom.feedbackMark.textContent=data.mark;dom.feedbackMark.className='feedback-mark '+data.className;
+    if(choice){roundScore+=data.points;const finalExercise=this.currentExerciseIndex>=EXERCISE_SEQUENCE.length-1;dom.scoreSummary.textContent=finalExercise?`+${data.points} spelpunten · Eindscore: ${roundScore} spelpunten`:`+${data.points} spelpunten · Totaal: ${roundScore} spelpunten`;dom.scoreSummary.hidden=false;}
+    else{dom.scoreSummary.hidden=true;dom.scoreSummary.textContent='';}
     dom.feedback.hidden=false;
     if(!choice){resultAction='retry';dom.nextButton.textContent='PROBEER OPNIEUW';}
     else if(this.currentExerciseIndex>=EXERCISE_SEQUENCE.length-1){
@@ -415,6 +416,7 @@ const EXERCISE_SEQUENCE = [
   {type:'run', role:'spits (9)', shortRole:'S (9)'},
 ];
 let resultAction='next';
+let roundScore=0;
 
 async function beginExercise(index) {
   if(index<0||index>=EXERCISE_SEQUENCE.length)return;
@@ -435,11 +437,11 @@ function continueSequence() {
   if(scene.busy)return;
   dom.feedback.hidden=true;dom.nextButton.hidden=true;
   if(resultAction==='retry')beginExercise(scene.currentExerciseIndex);
-  else if(resultAction==='replay')beginExercise(0);
+  else if(resultAction==='replay'){roundScore=0;beginExercise(0);}
   else beginExercise(scene.currentExerciseIndex+1);
 }
 
-dom.welcomeStart.addEventListener('click',()=>{dom.welcome.hidden=true;beginExercise(0);});
+dom.welcomeStart.addEventListener('click',()=>{roundScore=0;dom.welcome.hidden=true;beginExercise(0);});
 dom.nextButton.addEventListener('click',continueSequence);
 dom.answers.addEventListener('click',(event)=>{const button=event.target.closest('[data-choice]');if(button&&!button.disabled)scene.resolveChoice(button.dataset.choice);});
 

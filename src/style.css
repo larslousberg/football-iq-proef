@@ -57,6 +57,8 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
 .feedback-mark.retry-mark { background:#f18b69; }
 .feedback-copy h2 { margin:0 0 4px;font:700 16px 'Space Grotesk',sans-serif; }
 .feedback-copy p { margin:0;color:#c5d1c6;font-size:13px;line-height:1.45; }
+.feedback-copy .score-summary { margin-top:7px;color:#d5ff70;font-size:12px;font-weight:800; }
+.feedback-copy .score-summary[hidden] { display:none; }
 .feedback-actions { grid-column:1/-1;display:flex;gap:10px;margin-top:3px; }
 .secondary-button { flex:1;border:1px solid #ffffff26;border-radius:11px;background:#0d2016;padding:12px 10px;font-size:12px;font-weight:700; }
 .primary-button { flex:1;border-radius:11px;padding:12px 10px;font-size:12px; }
@@ -113,6 +115,7 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .feedback-mark { width:32px;height:32px;border-radius:10px;font-size:16px; }
   .feedback-copy h2 { font-size:14px;margin-bottom:3px; }
   .feedback-copy p { font-size:11px;line-height:1.35; }
+  .feedback-copy .score-summary { margin-top:6px;font-size:10px; }
   .feedback-actions { gap:7px; }
   .secondary-button,.primary-button { padding:10px 7px;font-size:10px;border-radius:9px; }
   .next-button { min-height:50px;font-size:13px; }

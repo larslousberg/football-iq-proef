@@ -23,10 +23,11 @@ Om op een telefoon te proberen: voer `npm run dev -- --host 0.0.0.0` uit en open
 
 ## Inhoud en interactie
 
-- De kijkfase start met balbezit bij ploegmaat Noah; spelers bewegen en de bal wordt naar de speler gespeeld.
+- De kijkfase start met balbezit bij LF (11); spelers bewegen en de bal wordt naar C (4) gespeeld.
 - Daarna verschijnen A/B/C en een timer van acht seconden.
-- A speelt naar Lou aan de rechterkant; B speelt centraal en laat Lars zichtbaar de passbaan kruisen en de bal onderscheppen; C speelt terug naar de steunspeler.
+- A speelt naar RF (7); B speelt centraal en laat een verdediger zichtbaar de passbaan kruisen en de bal onderscheppen; C speelt terug naar LF (11).
 - Elke keuze heeft een eigen geanimeerd gevolg en feedback.
+- Keuzes leveren 20, 50 of 100 spelpunten op; de totaalscore loopt door over de twee oefeningen.
 - “Bekijk situatie opnieuw” toont de kijkfase; “Probeer opnieuw” begint de oefening opnieuw.
 
 De spelers, bal, veld en app-iconen zijn eigen vector-/canvasvormen. Phaser 4.2.1 is MIT-gelicentieerd; Vite is alleen een ontwikkel-/buildhulpmiddel en is eveneens MIT-gelicentieerd. Zie `THIRD-PARTY-NOTICES.md`.
