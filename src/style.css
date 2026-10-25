@@ -22,6 +22,8 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
 .exercise-option.selected { border-color:#b3f34a99;background:#263d25;color:#d5ff70; }
 .exercise-option:focus-visible { outline:2px solid var(--lime);outline-offset:2px; }
 .start-button,.primary-button { display:inline-flex; align-items:center; justify-content:center; gap:13px; border:0; border-radius:13px; background:var(--lime); color:#14200d; font-size:14px; font-weight:800; padding:14px 19px; box-shadow:0 8px 24px #8dd83420; transition:transform .15s,filter .15s; }
+.role-start { width:100%;min-height:48px;margin-top:10px;border:0;border-radius:12px;background:var(--lime);color:#14200d;font-size:14px;font-weight:800;padding:12px 14px;box-shadow:0 8px 24px #8dd83420; }
+.role-start[hidden] { display:none; }
 .start-button:hover,.primary-button:hover { transform:translateY(-1px);filter:brightness(1.06); }
 .game-shell { flex:1; min-height:0; border:1px solid var(--edge); border-radius:22px; overflow:hidden; background:#0c1d14; box-shadow:0 22px 70px #0005; display:flex; flex-direction:column; }
 .field-frame { position:relative; flex:1 1 auto; min-height:330px; overflow:hidden; background:linear-gradient(180deg,#164a31,#11683f 48%,#0d5b37); }
@@ -88,12 +90,13 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .intro-copy { font-size:12px;margin-top:5px;max-width:520px; }
   .exercise-picker { gap:6px;margin-top:9px; }
   .exercise-option { min-height:37px;padding:7px 9px;font-size:10px; }
-  .intro .start-button { display:none; }
+  .intro .start-button { width:100%; }
   .game-shell { border-radius:17px;min-height:0; }
   .field-frame { min-height:0;flex:1 1 auto; }
   .phase-label { left:9px;top:9px;font-size:8px;padding:6px 8px; }
   .field-direction { right:8px;top:9px;font-size:7px;padding:6px; }
   .lesson-panel { padding:12px 11px max(10px,env(safe-area-inset-bottom)); }
+  .role-start { min-height:48px;margin-top:8px;font-size:13px; }
   .lesson-prompt { font-size:15px; }
   .countdown { font-size:11px; }
   .timer-track { height:7px;margin:8px 0 10px; }

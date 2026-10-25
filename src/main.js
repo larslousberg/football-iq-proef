@@ -8,6 +8,7 @@ const dom = {
   welcome: document.querySelector('#welcomeScrim'),
   start: document.querySelector('#startButton'),
   welcomeStart: document.querySelector('#welcomeStart'),
+  roleStart: document.querySelector('#roleStart'),
   phase: document.querySelector('#phaseText'),
   prompt: document.querySelector('#prompt'),
   answers: document.querySelector('#answers'),
@@ -55,6 +56,8 @@ class FootballScene extends Phaser.Scene {
     this.ballLabel = this.add.text(0, 0, 'BAL', { fontFamily: 'DM Sans, sans-serif', fontSize: '9px', color: '#f6f7ef', fontStyle: 'bold', stroke: '#092217', strokeThickness: 3 }).setOrigin(.5, 1);
     this.goalBanner = this.add.text(0, 0, 'GOAL!', { fontFamily: 'Space Grotesk, sans-serif', fontSize: '34px', fontStyle: 'bold', color: '#d5ff70', stroke: '#082015', strokeThickness: 7 }).setOrigin(.5).setAlpha(0).setDepth(1000);
     this.makeActors();
+    this.controlRing = this.add.ellipse(0, 0, 38, 24, 0xb3f34a, .12).setStrokeStyle(3, 0xd5ff70, 1).setDepth(0);
+    this.controlTag = this.add.text(0, 0, 'JIJ', { fontFamily: 'DM Sans, sans-serif', fontSize: '10px', fontStyle: 'bold', color: '#14200d', backgroundColor: '#d5ff70', padding: { x: 5, y: 2 } }).setOrigin(.5, 1).setDepth(1);
     this.scale.on('resize', this.handleResize, this);
     this.drawBoard();
     this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
@@ -101,6 +104,16 @@ class FootballScene extends Phaser.Scene {
     for (const actor of Object.values(this.actors)) this.placeActor(actor);
     this.placeBall();
     this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
+    this.updateControlMarker();
+  }
+
+  updateControlMarker(visible=this.controlRing.visible) {
+    if (!this.controlRing || !this.controlTag) return;
+    const actor = this.actors[this.activeExercise === 'run' ? 'forward' : 'me'];
+    if (!actor) return;
+    const p = this.project(actor.world.x, actor.world.y);
+    this.controlRing.setPosition(p.x, p.y + 10 * p.s).setScale(p.s).setDepth(p.y - 1).setVisible(visible);
+    this.controlTag.setPosition(p.x, p.y - 23 * p.s).setScale(p.s).setDepth(p.y + 1).setVisible(visible);
   }
 
   makeBall() {
@@ -149,6 +162,7 @@ class FootballScene extends Phaser.Scene {
       ball:{x:38,y:72},
     };
     for(const [id,actor] of Object.entries(this.actors)) { actor.world={...this.world[id]};this.placeActor(actor);this.stopRun(actor); }
+    this.updateControlMarker(true);
     this.resetPassLabels();
     this.goalBanner.setAlpha(0).setScale(1);
     this.placeBall();
@@ -163,6 +177,7 @@ class FootballScene extends Phaser.Scene {
     this.world=structuredClone(SPACE_MAKING_SCENARIO.start);
     for(const [id,actor] of Object.entries(this.actors)){actor.world={...this.world[id]};this.stopRun(actor);this.placeActor(actor);}
     for(const [id,label] of Object.entries(SPACE_MAKING_SCENARIO.playerLabels))this.actors[id].label.setText(label);
+    this.updateControlMarker(true);
     this.goalBanner.setAlpha(0).setScale(1);this.placeBall();
   }
 
@@ -171,6 +186,7 @@ class FootballScene extends Phaser.Scene {
     actor.container.setPosition(p.x,p.y).setScale(p.s);actor.container.setDepth(p.y);
     actor.label.setPosition(p.x,p.y+21*p.s).setScale(p.s).setDepth(p.y+1);
     actor.baseScale=p.s;
+    if (actor.id === (this.activeExercise === 'run' ? 'forward' : 'me')) this.updateControlMarker();
   }
   placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>this.time.delayedCall(ms,resolve)); }
@@ -198,24 +214,24 @@ class FootballScene extends Phaser.Scene {
   async showWatchPhase({review=false}={}) {
     if(this.activeExercise==='run'){return this.showRunWatchPhase({review});}
     this.busy=true;this.resetPositions();
-    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='Kijk waar iedereen loopt. De bal komt naar jou.';
-    dom.helper.textContent='Kijk naar je ploegmaats én naar de verdedigers.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
+    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='Noah speelt naar jou. Kijk om je heen.';
+    dom.helper.textContent='Jij bent IK (8). Kijk naar je ploegmaats en verdedigers.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';dom.roleStart.hidden=true;this.updateControlMarker(true);
     await this.delay(350);
     this.runCycle(this.actors.support);
     await Promise.all([this.moveBall({x:51,y:55},850,'Sine.easeInOut'),this.move('wide',{x:82,y:45},650),this.move('forward',{x:64,y:35},700),this.move('press',{x:53,y:59},700),this.move('interceptor',{x:68,y:43},700),this.move('farDef',{x:75,y:53},700)]);
     this.stopRun(this.actors.support);this.world.ball={x:51,y:55};this.placeBall();
     await this.delay(review?300:450);
-    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Je kan de kijkfase rustig bekijken.';dom.helper.textContent='Tik op “Probeer opnieuw” om zelf een keuze te maken.';this.busy=false;return;}
-    dom.phase.textContent='JIJ HEBT DE BAL';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kies binnen 8 seconden. Twee oplossingen kunnen goed zijn.';
-    dom.answers.hidden=false;this.beginTimer();this.busy=false;
+    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk nog eens rustig.';dom.helper.textContent='Tik op de knop om zelf te kiezen.';dom.roleStart.textContent='Start de kijkfase opnieuw';dom.roleStart.hidden=false;this.busy=false;return;}
+    dom.phase.textContent='JIJ BENT IK (8)';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kies een oplossing. Kijk naar de verdedigers.';
+    await this.revealChoices(8000);
   }
 
   async showRunWatchPhase({review=false}={}) {
     this.busy=true;this.resetSpacePositions();
     dom.phase.textContent=review?'KIJK NOG EENS':'KIJK GOED';
-    dom.prompt.textContent='S (9) heeft de bal niet. Hoe kan jij ruimte maken?';
-    dom.helper.textContent='Kijk naar C, RF en de verdediger bij S.';
-    dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
+    dom.prompt.textContent='MATS (1) speelt naar C (4).';
+    dom.helper.textContent='Jij bent S (9). Kijk naar RF en de verdediger bij jou.';
+    dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';dom.roleStart.hidden=true;this.updateControlMarker(true);
     await this.delay(300);
     await Promise.all([
       this.move('gk',{x:51,y:81},650),this.move('me',{x:57,y:62},550),
@@ -224,17 +240,24 @@ class FootballScene extends Phaser.Scene {
       this.move('cover',{x:61,y:39},700),this.move('interceptor',{x:56,y:31},700),
       this.move('farDef',{x:72,y:27},650),this.moveBall({x:57,y:62},650),
     ]);
-    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk hoe S en de verdediger bewegen.';dom.helper.textContent='Tik op “Probeer opnieuw” om zelf een loopactie te kiezen.';this.busy=false;return;}
-    dom.phase.textContent='JIJ SPEELT ALS S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
+    if(review){dom.phase.textContent='BEKIJK OPNIEUW';dom.prompt.textContent='Kijk hoe S en de verdediger bewegen.';dom.helper.textContent='Tik op de knop om zelf te kiezen.';dom.roleStart.textContent='Start de kijkfase opnieuw';dom.roleStart.hidden=false;this.busy=false;return;}
+    dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
     dom.answers.querySelector('[data-choice="A"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.A.label;
     dom.answers.querySelector('[data-choice="B"] .answer-label').textContent=SPACE_MAKING_SCENARIO.choices.B.label;
     dom.answers.querySelector('[data-choice="C"] .answer-label').textContent='Loop schuin weg';
-    dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';dom.answers.hidden=false;this.beginTimer();this.busy=false;
+    dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';await this.revealChoices(10000);
   }
 
-  beginTimer() {
-    dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.countdown.textContent='8';
-    const start=performance.now(), total=8000;
+  async revealChoices(totalMs) {
+    dom.answers.hidden=false;
+    this.busy=false;
+    await new Promise(requestAnimationFrame);
+    if (!this.busy && !dom.answers.hidden) this.beginTimer(totalMs);
+  }
+
+  beginTimer(total=8000) {
+    dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.countdown.textContent=String((total/1000).toFixed(1)).replace('.',',')+' s';
+    const start=performance.now();
     if(this.timerFrame) cancelAnimationFrame(this.timerFrame);
     const tick=(now)=>{
       const elapsed=now-start,ratio=Math.max(0,1-elapsed/total);
@@ -383,6 +406,7 @@ const game=new Phaser.Game({
 function selectExercise(mode){
   if(scene.busy)return;
   scene.activeExercise=mode;
+  scene.updateControlMarker(true);
   const running=mode==='run';
   dom.passExercise.classList.toggle('selected',!running);dom.runExercise.classList.toggle('selected',running);
   dom.passExercise.setAttribute('aria-pressed',String(!running));dom.runExercise.setAttribute('aria-pressed',String(running));
@@ -394,9 +418,28 @@ function selectExercise(mode){
   ['A','B','C'].forEach((letter,index)=>{const button=dom.answers.querySelector(`[data-choice="${letter}"]`);button.querySelector('.answer-label').textContent=labels[index];button.querySelector('.answer-arrow').textContent=arrows[index];});
   dom.prompt.textContent=running?'Kies een loopactie wanneer je klaar bent.':'Druk op start wanneer je klaar bent.';
 }
-function begin(){dom.welcome.hidden=true;dom.intro.hidden=true;dom.helper.textContent=scene.activeExercise==='run'?'Kijk naar C, RF en de verdediger bij S.':'Kijk naar je ploegmaats én naar de verdedigers.';game.scene.start('football');setTimeout(()=>{const active=game.scene.getScene('football');active.showWatchPhase();},100);}
+function beginRoleIntro(){
+  dom.intro.hidden=true;
+  dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';
+  if(scene.activeExercise==='run'){
+    scene.resetSpacePositions();
+    dom.phase.textContent='WIE SPEEL JIJ?';dom.prompt.textContent='Jij bent de spits (9).';
+    dom.helper.textContent='Zoek S (9) met de groene cirkel. De keeper heeft de bal.';
+  }else{
+    scene.resetPositions();
+    dom.phase.textContent='WIE SPEEL JIJ?';dom.prompt.textContent='Jij bent IK (8).';
+    dom.helper.textContent='Zoek IK (8) met de groene cirkel. Noah heeft de bal.';
+  }
+  scene.updateControlMarker(true);
+  dom.roleStart.textContent='Start de kijkfase';dom.roleStart.hidden=false;
+}
+function startWatchPhase(){
+  if(scene.busy)return;
+  dom.roleStart.hidden=true;
+  if(scene.activeExercise==='run')scene.showRunWatchPhase();else scene.showWatchPhase();
+}
 dom.passExercise.addEventListener('click',()=>selectExercise('pass'));dom.runExercise.addEventListener('click',()=>selectExercise('run'));
-dom.start.addEventListener('click',begin);dom.welcomeStart.addEventListener('click',begin);
+dom.start.addEventListener('click',beginRoleIntro);dom.welcomeStart.addEventListener('click',()=>{dom.welcome.hidden=true;});dom.roleStart.addEventListener('click',startWatchPhase);
 dom.answers.addEventListener('click',(event)=>{const button=event.target.closest('[data-choice]');if(button&&!button.disabled)scene.resolveChoice(button.dataset.choice);});
 dom.watchAgain.addEventListener('click',()=>{dom.feedback.hidden=true;scene.showWatchPhase({review:true});});
 dom.retry.addEventListener('click',()=>{dom.feedback.hidden=true;scene.restart();});

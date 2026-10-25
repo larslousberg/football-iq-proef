@@ -29,7 +29,7 @@
             <button class="exercise-option" id="runExercise" type="button" aria-pressed="false">🏃 Maak ruimte zonder bal</button>
           </div>
         </div>
-        <button class="start-button" id="startButton" type="button">Start de oefening <span aria-hidden="true">→</span></button>
+        <button class="start-button" id="startButton" type="button">Toon mijn speler <span aria-hidden="true">→</span></button>
       </section>
 
       <section class="game-shell" aria-label="Voetbaloefening">
@@ -44,6 +44,7 @@
             <div class="lesson-prompt" id="prompt">Druk op start wanneer je klaar bent.</div>
             <div class="countdown" id="countdown" aria-live="polite"></div>
           </div>
+          <button class="role-start" id="roleStart" type="button" hidden>Ik zie mijn speler — start de kijkfase</button>
           <div class="timer-track" id="timerTrack" aria-hidden="true"><div id="timerFill"></div></div>
           <div class="answers" id="answers" hidden>
             <button class="answer" data-choice="A" type="button"><span class="letter">A</span><span class="answer-label">Speel naar rechts</span><span class="answer-arrow">↗</span></button>
@@ -69,8 +70,8 @@
         <div class="welcome-badge">⚽</div>
         <p class="eyebrow">KLEINE KIJKTIP</p>
         <h2 id="welcomeTitle">Kijk vóór de bal komt</h2>
-        <p id="welcomeCopy">Let op wie vrij staat en waar de verdediger loopt. Daarna kies jij één van de drie oplossingen.</p>
-        <button class="start-button welcome-start" id="welcomeStart" type="button">Ik ben klaar <span aria-hidden="true">→</span></button>
+        <p id="welcomeCopy">Kies eerst je oefening. Daarna tonen we welke speler jij bent.</p>
+        <button class="start-button welcome-start" id="welcomeStart" type="button">Kies een oefening <span aria-hidden="true">→</span></button>
       </section>
     </div>
 
