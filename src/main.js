@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import './style.css';
 import { EXERCISE_SEQUENCE, PASS_SCENARIO, SPACE_MAKING_SCENARIO } from './scenarios.js';
-import { validateExerciseSequence } from './exercise-contract.js';
+import { isExerciseChoiceValid, validateExerciseSequence } from './exercise-contract.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -195,6 +195,10 @@ class FootballScene extends Phaser.Scene {
   }
   placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
+  cancelTimer() {
+    if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
+    if(this.timerDeadline){clearTimeout(this.timerDeadline);this.timerDeadline=null;}
+  }
   stopRun(actor) { if(actor.runTween){actor.runTween.remove(false);actor.runTween=null;} actor.leftLeg.setAngle(0);actor.rightLeg.setAngle(0);actor.leftBoot.setY(21);actor.rightBoot.setY(21);actor.armL.setAngle(-.18);actor.armR.setAngle(.18); }
   runCycle(actor) {
     this.stopRun(actor);
@@ -269,7 +273,8 @@ class FootballScene extends Phaser.Scene {
   beginTimer(total=8000) {
     dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.timerFill.style.transform='scaleX(1)';dom.countdown.textContent=String((total/1000).toFixed(1)).replace('.',',')+' s';
     const start=performance.now();
-    if(this.timerFrame) cancelAnimationFrame(this.timerFrame);
+    this.cancelTimer();
+    this.timerDeadline=window.setTimeout(()=>{this.timerDeadline=null;this.resolveChoice(null);},total);
     const tick=(now)=>{
       const elapsed=now-start,ratio=Math.max(0,1-elapsed/total);
       dom.timerFill.style.transform=`scaleX(${ratio})`;
@@ -283,9 +288,9 @@ class FootballScene extends Phaser.Scene {
 
   async resolveChoice(choice) {
     const exercise=this.activeExerciseDefinition;
-    if(!exercise||exercise.type!==this.activeExercise||!['A','B','C'].includes(choice)){console.error('Keuze geweigerd: oefeningstype en actieve keuzes komen niet overeen.');return;}
+    if(!exercise||exercise.type!==this.activeExercise||!isExerciseChoiceValid(exercise,choice)){console.error('Keuze geweigerd: oefeningstype en actieve keuzes komen niet overeen.');return;}
     if(this.busy)return;this.busy=true;
-    if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
+    this.cancelTimer();
     dom.answers.hidden=true;dom.countdown.textContent='';dom.timerTrack.classList.remove('active');
     if(!choice){dom.phase.textContent='GEEN KEUZE';dom.prompt.textContent='Geen probleem. Kijk nog eens rustig.';dom.helper.textContent='Je kan dezelfde situatie opnieuw proberen.';await this.delay(500);this.showFeedback(null);this.busy=false;return;}
     dom.phase.textContent='KIJK WAT ER GEBEURT';
@@ -430,6 +435,7 @@ let roundScore=0;
 
 async function beginExercise(index) {
   if(index<0||index>=EXERCISE_SEQUENCE.length)return;
+  scene.cancelTimer();
   scene.busy=true;scene.currentExerciseIndex=index;
   const exercise=EXERCISE_SEQUENCE[index];scene.activeExercise=exercise.type;scene.activeExerciseDefinition=exercise;scene.activeControllerId=exercise.controllerId;
   scene.setChoiceLabels(exercise);

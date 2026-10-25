@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EXERCISE_SEQUENCE } from './scenarios.js';
-import { validateExerciseSequence } from './exercise-contract.js';
+import { isExerciseChoiceValid, validateExerciseSequence } from './exercise-contract.js';
 
 test('de bestaande reeks koppelt beide oefeningstypes aan de juiste speler en drie keuzes', () => {
   assert.deepEqual(validateExerciseSequence(EXERCISE_SEQUENCE), []);
@@ -20,4 +20,9 @@ test('een passoefening kan niet aan een speler zonder bal worden gekoppeld', () 
 test('elke oefening moet exact A, B en C aanbieden', () => {
   const incomplete = { ...EXERCISE_SEQUENCE[0], choiceLabels: { A: 'Pass', B: 'Steun' } };
   assert.match(validateExerciseSequence([incomplete]).join(' '), /precies drie/);
+});
+
+test('een timeout is een geldige keuze-uitkomst; onbekende knopcodes niet', () => {
+  assert.equal(isExerciseChoiceValid(EXERCISE_SEQUENCE[0], null), true);
+  assert.equal(isExerciseChoiceValid(EXERCISE_SEQUENCE[0], 'D'), false);
 });

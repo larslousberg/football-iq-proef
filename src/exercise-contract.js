@@ -1,5 +1,9 @@
 const REQUIRED_CHOICES = ['A', 'B', 'C'];
 
+export function isExerciseChoiceValid(exercise, choice) {
+  return Boolean(exercise) && (choice === null || REQUIRED_CHOICES.includes(choice));
+}
+
 function hasExactChoices(value) {
   if (!value || typeof value !== 'object') return false;
   const keys = Object.keys(value).sort();
