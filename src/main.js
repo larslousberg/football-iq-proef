@@ -260,12 +260,12 @@ class FootballScene extends Phaser.Scene {
   async revealChoices(totalMs) {
     dom.answers.hidden=false;
     this.busy=false;
-    await new Promise(requestAnimationFrame);
+    await new Promise(resolve=>window.setTimeout(resolve,75));
     if (!this.busy && !dom.answers.hidden) this.beginTimer(totalMs);
   }
 
   beginTimer(total=8000) {
-    dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.countdown.textContent=String((total/1000).toFixed(1)).replace('.',',')+' s';
+    dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.timerFill.style.transform='scaleX(1)';dom.countdown.textContent=String((total/1000).toFixed(1)).replace('.',',')+' s';
     const start=performance.now();
     if(this.timerFrame) cancelAnimationFrame(this.timerFrame);
     const tick=(now)=>{
