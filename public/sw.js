@@ -1,4 +1,4 @@
-const CACHE = 'kvc-voetbaldenken-v3';
+const CACHE = 'kvc-voetbaldenken-v4';
 const BASE_URL = self.registration.scope;
 const APP_SHELL = ['index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'].map((path) => new URL(path, BASE_URL).href);
 self.addEventListener('install', (event) => {
@@ -10,6 +10,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  const appDocument = new URL('index.html', BASE_URL).href;
+  if (request.mode === 'navigate' || request.url === appDocument) {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put(appDocument, response.clone()));
+      return response;
+    }).catch(() => caches.match(request).then((cached) => cached || caches.match(appDocument))));
+    return;
+  }
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
     if (response.ok) {
       const copy = response.clone();
