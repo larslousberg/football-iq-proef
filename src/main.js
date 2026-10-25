@@ -198,16 +198,25 @@ class FootballScene extends Phaser.Scene {
   }
   move(id,to,duration=650,ease='Sine.easeInOut') {
     const actor=this.actors[id];this.runCycle(actor);
-    return new Promise(resolve=>this.tweens.add({targets:actor.world,x:to.x,y:to.y,duration,ease,onUpdate:()=>this.placeActor(actor),onComplete:()=>{this.stopRun(actor);this.placeActor(actor);resolve();}}));
+    return new Promise(resolve=>{
+      let fallback,completed=false;
+      const finish=()=>{if(completed)return;completed=true;if(fallback)clearTimeout(fallback);this.stopRun(actor);this.placeActor(actor);resolve();};
+      const tween=this.tweens.add({targets:actor.world,x:to.x,y:to.y,duration,ease,onUpdate:()=>this.placeActor(actor),onComplete:finish});
+      // Avoid leaving an exercise stuck if a mobile browser suspends a tween callback.
+      fallback=window.setTimeout(()=>{tween.stop();actor.world.x=to.x;actor.world.y=to.y;finish();},duration+1200);
+    });
   }
   moveBall(to,duration=650,ease='Sine.easeInOut',air=false) {
     return new Promise(resolve=>{
       const start={...this.world.ball};const state={t:0};
-      this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
+      let fallback,completed=false;
+      const finish=()=>{if(completed)return;completed=true;if(fallback)clearTimeout(fallback);this.world.ball={...to};this.placeBall();resolve();};
+      const tween=this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
         this.world.ball.x=Phaser.Math.Linear(start.x,to.x,state.t);this.world.ball.y=Phaser.Math.Linear(start.y,to.y,state.t);
         const p=this.project(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
         this.ball.setPosition(p.x,p.y-lift).setScale(p.s*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
-      },onComplete:()=>{this.world.ball={...to};this.placeBall();resolve();}});
+      },onComplete:finish});
+      fallback=window.setTimeout(()=>{tween.stop();finish();},duration+1200);
     });
   }
 
