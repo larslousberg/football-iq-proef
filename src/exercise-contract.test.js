@@ -50,6 +50,16 @@ test('de passkeuzes komen overeen met ontvangers en de onderschepping ligt in de
   assert.deepEqual(validatePassTargets(PASS_SCENARIO), []);
 });
 
+test('de passknoppen noemen de speler die de bijbehorende animatie ontvangt', () => {
+  const passExercise=EXERCISE_SEQUENCE[0];
+  assert.match(passExercise.choiceLabels.A,/RF\s*\(7\)/);
+  assert.match(passExercise.choiceLabels.B,/SP\s*\(9\)/);
+  assert.match(passExercise.choiceLabels.C,/LF\s*\(11\)/);
+  assert.equal(PASS_SCENARIO.passTargets["A"].receiver,'wide');
+  assert.equal(PASS_SCENARIO.passTargets["B"].receiver,'forward');
+  assert.equal(PASS_SCENARIO.passTargets["C"].receiver,'support');
+});
+
 test('alle tien spelers hebben een positie in elke loopvervolgfase', () => {
   const playerIds = ['gk', 'support', 'wide', 'me', 'forward', 'oppGk', 'press', 'cover', 'interceptor', 'farDef'].sort();
   for (const phases of Object.values(RUN_CHOICE_PATHS)) {

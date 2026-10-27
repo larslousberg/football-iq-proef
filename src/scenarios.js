@@ -124,7 +124,7 @@ export const EXERCISE_SEQUENCE = [
   {
     id: 'pass-centrale-speler', type: 'pass', role: 'centrale speler (4)', shortRole: 'C (4)',
     controllerId: 'me', ballCarrierId: 'me',
-    choiceLabels: { A: 'Speel naar rechts', B: 'Speel centraal', C: 'Speel terug' },
+    choiceLabels: { A: 'Pass naar RF (7)', B: 'Pass naar SP (9)', C: 'Terug naar LF (11)' },
   },
   {
     id: SPACE_MAKING_SCENARIO.id, type: 'run', role: 'spits (9)', shortRole: 'S (9)',
