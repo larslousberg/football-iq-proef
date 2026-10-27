@@ -1,11 +1,9 @@
 import {
-  KVC_DIAMOND_START,
   OPPONENT_ATTACK_DIRECTION,
-  fieldToScene,
   getFormationAnchors,
   migrateLegacyAnimationToField,
-  mapLineupToScene,
 } from './football-model.js';
+import { KEEPER_BUILD_UP_SCENARIO } from './keeper-build-up.js';
 
 const opponent2v2 = getFormationAnchors('2-2', OPPONENT_ATTACK_DIRECTION);
 const opponentField = {
@@ -14,26 +12,6 @@ const opponentField = {
   farDef: opponent2v2.backRight,
   press: opponent2v2.frontLeft,
   cover: opponent2v2.frontRight,
-};
-
-// Alle scenario's en animatiefasen gebruiken canonieke veldcoördinaten:
-// x=0 eigen doel, x=100 tegenstanderdoel; y=0 bovenste zijlijn.
-export const PASS_SCENARIO = {
-  opponentProfile: 'Compact 2-2',
-  passTargets: {
-    A: { receiver: 'wide' },
-    B: { receiver: 'forward', interception: { x: 47, y: 50 } },
-    C: { receiver: 'support', reception: { x: 34, y: 29 } },
-  },
-  start: {
-    ...KVC_DIAMOND_START,
-    ...opponentField,
-    ball: { ...KVC_DIAMOND_START.support },
-  },
-  watch: {
-    gk:{x:10,y:50},support:{x:40,y:17},wide:{x:44,y:84},me:{x:30,y:50},forward:{x:58,y:50},
-    oppGk:{x:96,y:50},press:{x:48,y:41},cover:{x:55,y:64},interceptor:{x:57,y:43},farDef:{x:68,y:67},ball:{x:30,y:50},
-  },
 };
 
 // Loopactie-oefening: keeper als steun achter C, beide flanken breed, S hoog.
@@ -62,46 +40,6 @@ export const SPACE_MAKING_SCENARIO = {
       feedback: 'Je lokte de verdediger naar links. Daardoor kwam rechts ruimte voor RF. Mooi gezien!' },
   },
 };
-
-// Pass gevolgen zijn als scenariofasen opgeslagen. De Phaser-player voert ze
-// uit; spelers en bal blijven daardoor per keuze samen beschrijfbaar.
-const P=mapLineupToScene(PASS_SCENARIO.watch);
-const legacyInterception=fieldToScene(PASS_SCENARIO.passTargets.B.interception);
-const legacyReception=fieldToScene(PASS_SCENARIO.passTargets.C.reception);
-const LEGACY_PASS_CHOICE_PATHS={
-  A:[
-    {duration:1150,receiver:'wide',ballTo:P.wide,players:{
-      gk:{x:49,y:84},support:{x:27,y:65},wide:P.wide,me:{x:51,y:55},forward:{x:53,y:24},
-      oppGk:{x:50,y:6},press:{x:52,y:49},cover:{x:59,y:43},interceptor:{x:59,y:41},farDef:{x:75,y:42},
-    }},
-    {duration:750,carrier:'wide',players:{
-      gk:{x:49,y:82},support:{x:28,y:64},wide:{x:82,y:43},me:{x:56,y:52},forward:{x:54,y:23},
-      oppGk:{x:50,y:5},press:{x:57,y:48},cover:{x:56,y:41},interceptor:{x:64,y:39},farDef:{x:79,y:42},
-    }},
-  ],
-  B:[
-    {duration:1050,ballTo:legacyInterception,ballEase:'Linear',defensiveShape:'compactKvcDiamond',
-      interceptionBy:'interceptor',pauseAfter:180,players:{
-      gk:{x:50,y:86},support:{x:39,y:67},wide:{x:68,y:51},me:{x:51,y:53},forward:{x:52,y:34},
-      oppGk:{x:50,y:6},press:{x:49,y:49},cover:{x:55,y:42},interceptor:legacyInterception,farDef:{x:70,y:43},
-    }},
-    {duration:700,carrier:'interceptor',defensiveShape:'compactKvcDiamond',players:{
-      gk:{x:50,y:84},support:{x:41,y:66},wide:{x:66,y:54},me:{x:53,y:52},forward:{x:52,y:35},
-      oppGk:{x:50,y:6},press:{x:52,y:50},cover:{x:52,y:41},interceptor:{x:54,y:49},farDef:{x:68,y:45},
-    }},
-  ],
-  C:[
-    {duration:1100,receiver:'support',ballTo:legacyReception,players:{
-      gk:{x:49,y:84},support:legacyReception,wide:{x:78,y:46},me:{x:52,y:54},forward:{x:52,y:25},
-      oppGk:{x:50,y:6},press:{x:43,y:51},cover:{x:54,y:42},interceptor:{x:49,y:39},farDef:{x:69,y:39},
-    }},
-    {duration:650,carrier:'support',players:{
-      gk:{x:49,y:83},support:{x:33,y:65},wide:{x:79,y:45},me:{x:53,y:52},forward:{x:53,y:24},
-      oppGk:{x:50,y:6},press:{x:45,y:50},cover:{x:53,y:41},interceptor:{x:50,y:38},farDef:{x:68,y:38},
-    }},
-  ],
-};
-export const PASS_CHOICE_PATHS=migrateLegacyAnimationToField(LEGACY_PASS_CHOICE_PATHS);
 
 // Gevolgen van de loopkeuze zijn als scenario-mijlpalen vastgelegd; de Phaser
 // scene speelt ze af. Zo blijven posities controleerbaar zonder wedstrijd-AI.
@@ -174,9 +112,9 @@ export const RUN_CHOICE_PATHS=migrateLegacyAnimationToField(LEGACY_RUN_CHOICE_PA
 // Eén centrale reeks houdt speler, keuze-etiketten en afhandeling per oefening bij elkaar.
 export const EXERCISE_SEQUENCE = [
   {
-    id: 'pass-centrale-speler', type: 'pass', role: 'centrale speler (4)', shortRole: 'C (4)',
+    id: KEEPER_BUILD_UP_SCENARIO.id, type: 'pass', role: 'centrale speler (4)', shortRole: 'C (4)',
     controllerId: 'me', ballCarrierId: 'me',
-    choiceLabels: { A: 'Pass naar RF (7)', B: 'Pass naar SP (9)', C: 'Terug naar LF (11)' },
+    choiceLabels: Object.fromEntries(Object.entries(KEEPER_BUILD_UP_SCENARIO.choices).map(([key, value]) => [key, value.label])),
   },
   {
     id: SPACE_MAKING_SCENARIO.id, type: 'run', role: 'spits (9)', shortRole: 'S (9)',

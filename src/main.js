@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import './style.css';
-import { EXERCISE_SEQUENCE, PASS_CHOICE_PATHS, PASS_SCENARIO, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
-import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validatePassChoicePaths, validatePassTargets, validateRunChoicePaths } from './exercise-contract.js';
+import { EXERCISE_SEQUENCE, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { KEEPER_BUILD_UP_SCENARIO, buildKeeperBuildUpOutcome, validateKeeperBuildUpScenario } from './keeper-build-up.js';
+import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validateRunChoicePaths } from './exercise-contract.js';
 import { HOME_ROLES, PITCH, buildKvcDefensiveDiamond } from './football-model.js';
 
 const dom = {
@@ -26,49 +27,25 @@ const dom = {
   welcomeCopy: document.querySelector('#welcomeCopy'),
 };
 
-const COPY = {
-  A: {
-    title: 'Goed gezien! Je speelde vooruit.',
-    text: 'Rechterflank (7) had ruimte. De verdediger stond te ver weg om de bal te pakken. Zo kom je met je ploeg dichter bij het doel.',
-    points: 100,
-    mark: '✓', className: '',
-  },
-  B: {
-    title: 'De verdediger kwam ertussen.',
-    text: 'Je ploegmaat leek vrij, maar een verdediger liep de passlijn in. Kijk nog eens naar die loopactie. Wat zie je nu?',
-    points: 20,
-    mark: '↗', className: 'retry-mark',
-  },
-  C: {
-    title: 'Slim en veilig gespeeld.',
-    text: 'Je hield de bal bij je ploeg. Goed dat je de steun achter je zag. Kijk een volgende keer ook of je vooruit kunt spelen.',
-    points: 50,
-    mark: '✓', className: '',
-  },
-};
-
 const exerciseContractErrors = validateExerciseSequence(EXERCISE_SEQUENCE);
 if (exerciseContractErrors.length) throw new Error(`Ongeldige oefenreeks: ${exerciseContractErrors.join(' ')}`);
 const scenarioErrors = [
-  ...validateKvcScenarioGeometry(PASS_SCENARIO, 'pass'),
-  ...validatePassTargets(PASS_SCENARIO),
-  ...validatePassChoicePaths(PASS_CHOICE_PATHS, PASS_SCENARIO.watch),
+  ...validateKeeperBuildUpScenario(),
   ...validateKvcScenarioGeometry(SPACE_MAKING_SCENARIO, 'run'),
   ...validateRunChoicePaths(RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO.watch),
 ];
 if (scenarioErrors.length) throw new Error(`Ongeldige KVC-situatie: ${scenarioErrors.join(' ')}`);
 
 class FootballScene extends Phaser.Scene {
-  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; this.visualMode = 'pass'; }
+  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; this.visualMode = 'pass'; this.ballCarrierId = 'gk'; this.choiceElapsedMs = 0; }
 
   create() {
     this.pitch = this.add.graphics();
     this.ball = this.makeBall();
-    this.ballLabel = this.add.text(0, 0, 'BAL', { fontFamily: 'DM Sans, sans-serif', fontSize: '9px', color: '#f6f7ef', fontStyle: 'bold', stroke: '#092217', strokeThickness: 3 }).setOrigin(.5, 1);
     this.goalBanner = this.add.text(0, 0, 'GOAL!', { fontFamily: 'Space Grotesk, sans-serif', fontSize: '34px', fontStyle: 'bold', color: '#d5ff70', stroke: '#082015', strokeThickness: 7 }).setOrigin(.5).setAlpha(0).setDepth(1000);
     this.makeActors();
-    this.controlRing = this.add.ellipse(0, 0, 56, 52, 0x60f3c5, .10).setStrokeStyle(3, 0x6df2c8, 1).setDepth(0);
-    this.controlTag = this.add.text(0, 0, 'JIJ', { fontFamily: 'DM Sans, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#14200d', backgroundColor: '#d5ff70', padding: { x: 6, y: 3 } }).setOrigin(.5, 1).setDepth(1);
+    this.controlRing = this.add.circle(0, 0, 26, 0x60f3c5, .035).setStrokeStyle(2, 0x6df2c8, .9).setDepth(0);
+    this.tweens.add({ targets: this.controlRing, alpha: { from: .45, to: .95 }, scale: { from: .96, to: 1.05 }, duration: 1450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.scale.on('resize', this.handleResize, this);
     this.drawBoard();
     this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
@@ -141,7 +118,6 @@ class FootballScene extends Phaser.Scene {
     this.visualMode='pass';
     document.body.classList.add('pass-visual-trial');
     if(dom.directionArrow)dom.directionArrow.textContent='→';
-    this.ballLabel.setVisible(this.visualMode!=='pass');
     this.drawBoard();
     for(const actor of Object.values(this.actors)){
       actor.tokenGroup.setVisible(this.visualMode==='pass');
@@ -162,26 +138,28 @@ class FootballScene extends Phaser.Scene {
   }
 
   updateControlMarker(visible=this.controlRing.visible) {
-    if (!this.controlRing || !this.controlTag) return;
+    if (!this.controlRing) return;
     const actor = this.actors[this.activeControllerId];
     if (!actor) return;
     const p = this.projectField(actor.world.x, actor.world.y);
-    const ringOffset=this.visualMode==='pass'?0:9*p.s;
-    this.controlRing.setPosition(p.x, p.y + ringOffset).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
-    this.controlTag.setPosition(p.x, p.y - 25 * p.s).setScale(p.s).setDepth(p.y + 2).setVisible(visible);
+    this.controlRing.setPosition(p.x, p.y).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
   }
 
   makeBall() {
     const c = this.add.container(0,0);
-    c.add(this.add.ellipse(1,5,14,6,0x06190e,.34));
-    c.add(this.add.circle(0,0,6.6,0xf8f8ec,1).setStrokeStyle(1,0x152119,.9));
-    const seam=this.add.graphics();seam.lineStyle(1,0x344338,.8);seam.strokeCircle(0,0,3);seam.lineBetween(-5,0,5,0);seam.lineBetween(0,-5,0,5);c.add(seam);
+    c.add(this.add.ellipse(0,4,12,4,0x02080d,.28));
+    c.add(this.add.circle(0,0,6.8,0xf8f8ec,1).setStrokeStyle(.8,0x17211c,.9));
+    const pattern=this.add.graphics();pattern.fillStyle(0x171d1b,1);pattern.lineStyle(.7,0x171d1b,.95);
+    const pentagon=(cx,cy,r,rotation=0)=>{const points=[];for(let i=0;i<5;i++){const angle=rotation+i*Math.PI*2/5;points.push({x:cx+Math.cos(angle)*r,y:cy+Math.sin(angle)*r});}pattern.fillPoints(points,true);};
+    pentagon(0,0,2.25,-Math.PI/2);
+    for(let i=0;i<5;i++){const angle=-Math.PI/2+i*Math.PI*2/5;const x=Math.cos(angle),y=Math.sin(angle);pattern.lineBetween(x*2.2,y*2.2,x*6.1,y*6.1);pentagon(x*4.35,y*4.35,1.25,angle);}
+    c.add(pattern);
     c.setDepth(100); return c;
   }
 
   makeFootballer(id, team, kit, displayLabel, number, keeper=false) {
     const c=this.add.container(0,0);
-    const shadow=this.add.ellipse(0,11,31,11,0x04160c,.36);
+    const shadow=this.add.ellipse(0,0,34,34,0x04160c,.25);
     const leftLeg=this.add.rectangle(-5,7,6,15,team==='home'?0xf3f4e8:0xa82f2c).setOrigin(.5,.05).setStrokeStyle(1,0x122118,.35);
     const rightLeg=this.add.rectangle(5,7,6,15,team==='home'?0xf3f4e8:0xa82f2c).setOrigin(.5,.05).setStrokeStyle(1,0x122118,.35);
     const leftBoot=this.add.ellipse(-6,21,8,4,0x14221a); const rightBoot=this.add.ellipse(6,21,8,4,0x14221a);
@@ -194,7 +172,7 @@ class FootballScene extends Phaser.Scene {
     const legacyParts=[shadow,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,body,stripe,head,hair,numberText];
     c.add(legacyParts);
     const tokenGroup=this.add.container(0,0);
-    const tokenShadow=this.add.ellipse(2,17,42,12,0x02080d,.48);
+    const tokenShadow=this.add.ellipse(0,1,42,42,0x02080d,.34);
     const tokenRim=this.add.circle(0,0,20,team==='home'?0x829097:0xf0aaa1,.96);
     const tokenFace=this.add.circle(0,-1,17.8,team==='home'?0x101c27:0x9d2729,1);
     const tokenInset=this.add.circle(0,-1,16.1,team==='home'?0x070d13:0x791c20,1).setStrokeStyle(1,team==='home'?0xb7c7cd:0xffb8ae,.42);
@@ -225,7 +203,8 @@ class FootballScene extends Phaser.Scene {
   }
 
   resetPositions() {
-    this.world=structuredClone(PASS_SCENARIO.start);
+    this.world=structuredClone(KEEPER_BUILD_UP_SCENARIO.start);
+    this.ballCarrierId='gk';
     for(const [id,actor] of Object.entries(this.actors)) { actor.world={...this.world[id]};this.placeActor(actor);this.stopRun(actor); }
     this.updateControlMarker(true);
     this.resetPassLabels();
@@ -247,6 +226,7 @@ class FootballScene extends Phaser.Scene {
 
   resetSpacePositions() {
     this.world=structuredClone(SPACE_MAKING_SCENARIO.start);
+    this.ballCarrierId='gk';
     for(const [id,actor] of Object.entries(this.actors)){actor.world={...this.world[id]};this.stopRun(actor);this.placeActor(actor);}
     for(const [id,label] of Object.entries(SPACE_MAKING_SCENARIO.playerLabels))this.actors[id].label.setText(label);
     this.updateControlMarker(true);
@@ -260,7 +240,8 @@ class FootballScene extends Phaser.Scene {
     actor.baseScale=p.s;
     if (actor.id === this.activeControllerId) this.updateControlMarker();
   }
-  placeBall() { const p=this.projectField(this.world.ball.x,this.world.ball.y),ballScale=this.visualMode==='pass'?1.5:1;this.ball.setPosition(p.x,p.y).setScale(p.s*ballScale);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
+  ballCarrierOffset(id, scale) { const actor=this.actors[id];return actor?{x:(actor.team==='home'?23:-23)*scale,y:6*scale}:{x:0,y:0}; }
+  placeBall() { const p=this.projectField(this.world.ball.x,this.world.ball.y),offset=this.ballCarrierOffset(this.ballCarrierId,p.s);this.ball.setPosition(p.x+offset.x,p.y+offset.y).setScale(p.s*1.15);this.ball.setDepth(p.y+offset.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
   cancelTimer() {
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
@@ -283,16 +264,16 @@ class FootballScene extends Phaser.Scene {
       fallback=window.setTimeout(()=>{tween.stop();actor.world.x=to.x;actor.world.y=to.y;finish();},duration+1200);
     });
   }
-  moveBall(to,duration=650,ease='Sine.easeInOut',air=false) {
+  moveBall(to,duration=650,ease='Sine.easeInOut',air=false,carrierId=null) {
     return new Promise(resolve=>{
       const start={...this.world.ball};const state={t:0};
       let fallback,completed=false;
       const finish=()=>{if(completed)return;completed=true;if(fallback)clearTimeout(fallback);this.world.ball={...to};this.placeBall();resolve();};
       const tween=this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
         this.world.ball.x=Phaser.Math.Linear(start.x,to.x,state.t);this.world.ball.y=Phaser.Math.Linear(start.y,to.y,state.t);
-        const p=this.projectField(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
-        const ballScale=this.visualMode==='pass'?1.5:1;
-        this.ball.setPosition(p.x,p.y-lift).setScale(p.s*ballScale*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
+        const p=this.projectField(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:0;
+        const offset=this.ballCarrierOffset(carrierId,p.s);
+        this.ball.setPosition(p.x+offset.x,p.y+offset.y-lift).setScale(p.s*1.15*(1+Math.sin(Math.PI*state.t)*.08));this.ball.setDepth(p.y+offset.y+5);
       },onComplete:finish});
       fallback=window.setTimeout(()=>{tween.stop();finish();},duration+1200);
     });
@@ -302,17 +283,16 @@ class FootballScene extends Phaser.Scene {
     if(this.activeExerciseDefinition?.type==='run'){return this.showRunWatchPhase();}
     this.busy=true;this.resetPositions();
     this.setChoiceLabels(this.activeExerciseDefinition);
-    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='LF (11) speelt naar jou.';
-    dom.helper.textContent='Kijk om je heen.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
+    dom.phase.textContent='KIJK GOED';dom.prompt.textContent='K (1) heeft de bal. Kijk naar de rode druk.';
+    dom.helper.textContent='C (4) komt vrij. Kijk vóór de pass.';dom.answers.hidden=true;dom.feedback.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';this.updateControlMarker(true);
     await this.delay(350);
-    await Promise.all([
-      this.moveBall(PASS_SCENARIO.watch.ball,1250,'Sine.easeInOut'),
-      ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,PASS_SCENARIO.watch[id],650)),
-    ]);
-    this.world.ball={...PASS_SCENARIO.watch.ball};this.placeBall();
-    await this.delay(450);
-    dom.phase.textContent='JIJ BENT C (4)';dom.prompt.textContent='Waar speel jij naartoe?';dom.helper.textContent='Kijk naar de verdedigers.';
-    await this.revealChoices(8000);
+    dom.prompt.textContent='C (4) maakt zich aanspeelbaar.';
+    await this.playScenarioPhase(KEEPER_BUILD_UP_SCENARIO.openingPhases[0]);
+    dom.prompt.textContent='K (1) speelt naar C (4).';
+    await this.playScenarioPhase(KEEPER_BUILD_UP_SCENARIO.openingPhases[1]);
+    dom.phase.textContent='JIJ BENT C (4)';dom.prompt.textContent='Wat doe jij met de bal?';
+    dom.helper.textContent=KEEPER_BUILD_UP_SCENARIO.decision.pressureDescription;
+    await this.revealChoices(KEEPER_BUILD_UP_SCENARIO.timerMs, KEEPER_BUILD_UP_SCENARIO.decision);
   }
 
   async showRunWatchPhase() {
@@ -328,24 +308,33 @@ class FootballScene extends Phaser.Scene {
       ...['gk','support','wide','me','forward','press','cover','interceptor','farDef','oppGk'].map(id=>this.move(id,SPACE_MAKING_SCENARIO.watch[id],650)),
       this.moveBall(SPACE_MAKING_SCENARIO.watch.ball,1250),
     ]);
+    this.ballCarrierId='me';this.placeBall();
     dom.phase.textContent='JIJ BENT S (9)';dom.prompt.textContent='Welke loopactie kies jij?';
     dom.helper.textContent='Kies rustig. Kijk wat de verdediger doet.';await this.revealChoices(10000);
   }
 
-  async revealChoices(totalMs) {
+  async revealChoices(totalMs, pressure=null) {
     dom.answers.hidden=false;
     this.busy=false;
     await new Promise(resolve=>window.setTimeout(resolve,75));
-    if (!this.busy && !dom.answers.hidden) this.beginTimer(totalMs);
+    if (!this.busy && !dom.answers.hidden) this.beginTimer(totalMs,pressure);
   }
 
-  beginTimer(total=8000) {
+  beginTimer(total=8000,pressure=null) {
     dom.timerTrack.classList.add('active');dom.timerFill.classList.remove('urgent');dom.timerFill.style.transform='scaleX(1)';dom.countdown.textContent=String((total/1000).toFixed(1)).replace('.',',')+' s';
-    const start=performance.now();
+    const start=performance.now();this.choiceElapsedMs=0;
+    const pressureActor=pressure?this.actors[pressure.pressurePlayerId]:null;
+    const pressureStart=pressureActor?{...pressureActor.world}:null;
     this.cancelTimer();
     this.timerDeadline=window.setTimeout(()=>{this.timerDeadline=null;this.resolveChoice(null);},total);
     const tick=(now)=>{
       const elapsed=now-start,ratio=Math.max(0,1-elapsed/total);
+      this.choiceElapsedMs=Math.min(total,elapsed);
+      if(pressureActor&&pressureStart){
+        pressureActor.world.x=Phaser.Math.Linear(pressureStart.x,pressure.pressureTarget.x,1-ratio);
+        pressureActor.world.y=Phaser.Math.Linear(pressureStart.y,pressure.pressureTarget.y,1-ratio);
+        this.placeActor(pressureActor);
+      }
       dom.timerFill.style.transform=`scaleX(${ratio})`;
       dom.countdown.textContent=String(Math.max(0,Math.ceil(total-elapsed)/1000).toFixed(1)).replace('.',',')+' s';
       if(ratio<.3)dom.timerFill.classList.add('urgent');
@@ -361,24 +350,37 @@ class FootballScene extends Phaser.Scene {
     if(this.busy)return;this.busy=true;
     this.cancelTimer();
     dom.answers.hidden=true;dom.countdown.textContent='';dom.timerTrack.classList.remove('active');
-    if(!choice){dom.phase.textContent='GEEN KEUZE';dom.prompt.textContent='Geen probleem. Kijk nog eens rustig.';dom.helper.textContent='Je kan dezelfde situatie opnieuw proberen.';await this.delay(500);this.showFeedback(null);this.busy=false;return;}
+    if(!choice){dom.phase.textContent='DRUK OP C (4)';dom.prompt.textContent='De verdediger kwam dichtbij.';dom.helper.textContent='C schermt de bal af. Probeer daarna opnieuw.';if(exercise.type==='pass'&&exercise.id===KEEPER_BUILD_UP_SCENARIO.id)await this.playKeeperTimeout();else await this.delay(500);this.showFeedback(null,{title:'Geen probleem.',text:'De verdediger kwam dichtbij. Kijk nog eens naar de vrije speler en probeer opnieuw.',mark:'↻',className:'warn'});this.busy=false;return;}
     dom.phase.textContent='KIJK WAT ER GEBEURT';
+    let outcomeFeedback=null;
     if(exercise.type==='run'){
       dom.prompt.textContent=SPACE_MAKING_SCENARIO.choices[choice].title;dom.helper.textContent='Volg jouw loopactie en kijk wat de verdediger doet.';
       await this.playRunChoice(choice);
     }else{
-      dom.prompt.textContent={A:'Je speelt naar RF (7).',B:'Je speelt naar S (9).',C:'Je speelt terug naar LF (11).'}[choice];dom.helper.textContent='Volg de bal en kijk hoe de spelers reageren.';
-      if(choice==='A')await this.playA();if(choice==='B')await this.playB();if(choice==='C')await this.playC();
+      if(exercise.id===KEEPER_BUILD_UP_SCENARIO.id){
+        const action=KEEPER_BUILD_UP_SCENARIO.choices[choice];
+        dom.prompt.textContent=action.action==='dribble'?'Je dribbelt vooruit.':`Je speelt naar ${action.receiver==='wide'?'RF (7)':'SP (9)'}.`;
+        dom.helper.textContent='Kijk hoe de verdedigers en ploegmaats reageren.';
+        outcomeFeedback=await this.playKeeperBuildUpChoice(choice);
+      }else{
+        dom.prompt.textContent='Volg de bal en kijk hoe de spelers reageren.';
+        await this.delay(300);
+      }
     }
-    await this.delay(250);this.showFeedback(choice);this.busy=false;
+    await this.delay(250);this.showFeedback(choice,outcomeFeedback);this.busy=false;
   }
 
-  async playA() { await this.playPassChoice('A'); }
-  async playB() { await this.playPassChoice('B'); }
-  async playC() { await this.playPassChoice('C'); }
+  async playKeeperBuildUpChoice(choice) {
+    const result=buildKeeperBuildUpOutcome(choice,this.world,this.choiceElapsedMs);
+    for(const phase of result.phases)await this.playScenarioPhase(phase);
+    return result.feedback;
+  }
 
-  async playPassChoice(choice) {
-    for (const phase of PASS_CHOICE_PATHS[choice]) await this.playScenarioPhase(phase);
+  async playKeeperTimeout() {
+    await this.playScenarioPhase({duration:650,carrier:'me',players:{
+      gk:{x:12,y:50},me:{x:32,y:44},support:{x:42,y:15},wide:{x:42,y:85},forward:{x:59,y:50},
+      oppGk:{x:96,y:50},press:{x:33,y:42},cover:{x:37,y:62},interceptor:{x:53,y:47},farDef:{x:60,y:79},
+    }});
   }
 
   async playRunChoice(choice) {
@@ -410,15 +412,18 @@ class FootballScene extends Phaser.Scene {
     else if(shot)ballTarget=shot;
     else throw new Error('Elke vervolgfase heeft een baldrager, ontvanger of schot nodig.');
     const tasks=Object.entries(targets).map(([id,to])=>this.move(id,to,duration));
-    tasks.push(this.moveBall(ballTarget,duration,phase.ballEase||'Sine.easeInOut'));
+    const attachedCarrier=phase.interceptionBy?null:carrier||null;
+    tasks.push(this.moveBall(ballTarget,duration,phase.ballEase||'Sine.easeInOut',false,attachedCarrier));
     await Promise.all(tasks);
+    this.ballCarrierId=phase.interceptionBy||carrier||receiver||null;
+    this.placeBall();
     if(phase.interceptionBy&&this.actors[phase.interceptionBy])this.ball.setDepth(this.actors[phase.interceptionBy].container.depth+2);
     if(phase.pauseAfter)await this.delay(phase.pauseAfter);
   }
 
-  showFeedback(choice) {
+  showFeedback(choice, suppliedFeedback=null) {
     const exercise=this.activeExerciseDefinition;
-    const data=choice?(exercise.type==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,points:SPACE_MAKING_SCENARIO.choices[choice].points,mark:'✓',className:''}:COPY[choice]):{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
+    const data=choice?(exercise.type==='run'?{title:choice==='C'?'Ruimte gemaakt!':choice==='A'?'Goed vrijgelopen!':'Goed diep gebleven.',text:SPACE_MAKING_SCENARIO.choices[choice].feedback,points:SPACE_MAKING_SCENARIO.choices[choice].points,mark:'✓',className:''}:suppliedFeedback):suppliedFeedback||{title:'Geen probleem.',text:'Kijk rustig nog eens. Je mag deze oefening opnieuw proberen.',mark:'↻',className:'warn'};
     dom.phase.textContent=choice==='B'&&exercise.type==='pass'?'KIJK NOG EENS':'GOED GEKEKEN';
     dom.prompt.textContent=choice?'Wat zag jij gebeuren?':'Neem rustig nog een kijkje.';
     dom.helper.textContent=exercise.type==='run'?'Je kan ook zonder bal ruimte maken.':'Onthoud: kijk vóór je de bal krijgt.';
@@ -461,7 +466,7 @@ async function beginExercise(index) {
   if(exercise.type==='run')scene.resetSpacePositions();else scene.resetPositions();
   dom.phase.textContent=`JIJ BENT ${exercise.shortRole}`;
   dom.prompt.textContent=`Jij bent ${exercise.role}.`;
-  dom.helper.textContent='Zoek de groene cirkel met JIJ.';
+  dom.helper.textContent='Zoek de mintgroene ring.';
   for(let count=3;count>0;count--){dom.countdown.textContent=String(count);await scene.delay(1000);}
   dom.countdown.textContent='';
   if(exercise.type==='run')await scene.showRunWatchPhase();else await scene.showWatchPhase();

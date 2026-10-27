@@ -72,13 +72,14 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
 .footer-note { margin-left:auto;color:#bdc9bd;font-style:italic;font-size:11px;font-weight:500;letter-spacing:0; }
 .welcome-scrim { position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:18px;background:#030b08b8;backdrop-filter:blur(8px); }
 .welcome-scrim[hidden] { display:none; }
-.welcome-card { width:min(440px,100%);padding:27px;border:1px solid #ffffff1e;border-radius:23px;background:linear-gradient(145deg,#193425,#0d2016);box-shadow:0 24px 90px #0009; }
-.welcome-badge { width:48px;height:48px;display:grid;place-items:center;margin-bottom:18px;border-radius:15px;background:#b3f34a;font-size:25px; }
+.welcome-card { width:min(440px,100%);padding:27px;border:1px solid #62e8c04a;border-radius:23px;background:radial-gradient(ellipse at 100% 0%,#124c4c 0%,transparent 55%),linear-gradient(145deg,#102833,#081921);box-shadow:0 24px 90px #0009; }
+.welcome-badge { width:48px;height:48px;display:grid;place-items:center;margin-bottom:18px;border-radius:15px;background:#69edc4;color:#08221c;font-size:25px; }
+.welcome-card .eyebrow { color:#85efcf; }
 .welcome-card h2 { margin:0 0 9px;font:700 25px 'Space Grotesk',sans-serif;letter-spacing:-.04em; }
 .welcome-card>p:not(.eyebrow) { margin:0 0 21px;color:#c3d0c4;font-size:14px;line-height:1.55; }
 .welcome-start { width:100%; }
 
-/* Pass-scene visual trial. The loop exercise keeps its current presentation. */
+/* Shared petrol-and-mint game presentation. */
 .pass-visual-trial .game-shell { border-color:#5be0c344;background:#07151d;box-shadow:0 22px 70px #0007; }
 .pass-visual-trial .field-frame { background:#071720; }
 .pass-visual-trial .phase-label,.pass-visual-trial .field-direction { background:#06131de8;border-color:#8bead33d; }
