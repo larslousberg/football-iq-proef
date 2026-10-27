@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import './style.css';
-import { EXERCISE_SEQUENCE, PASS_SCENARIO, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
-import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validatePassTargets, validateRunChoicePaths } from './exercise-contract.js';
+import { EXERCISE_SEQUENCE, PASS_CHOICE_PATHS, PASS_SCENARIO, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validatePassChoicePaths, validatePassTargets, validateRunChoicePaths } from './exercise-contract.js';
+import { HOME_ROLES, PITCH, buildKvcDefensiveDiamond } from './football-model.js';
 
 const dom = {
   field: document.querySelector('#game'),
@@ -51,6 +52,7 @@ if (exerciseContractErrors.length) throw new Error(`Ongeldige oefenreeks: ${exer
 const scenarioErrors = [
   ...validateKvcScenarioGeometry(PASS_SCENARIO, 'pass'),
   ...validatePassTargets(PASS_SCENARIO),
+  ...validatePassChoicePaths(PASS_CHOICE_PATHS, PASS_SCENARIO.watch),
   ...validateKvcScenarioGeometry(SPACE_MAKING_SCENARIO, 'run'),
   ...validateRunChoicePaths(RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO.watch),
 ];
@@ -76,55 +78,69 @@ class FootballScene extends Phaser.Scene {
   }
 
   project(u, v) {
-    const w = this.scale.width, h = this.scale.height;
-    if (this.visualMode === 'pass') {
-      // Fixed touchline view: our goal is left, the attacking goal right.
-      // Scenario coordinates remain unchanged; only their projection changes.
-      const depth = (100 - v) / 100;
-      const side = .64 + .22 * depth;
-      return { x: w * (.05 + .90 * depth), y: h * (.5 + (u - 50) * side / 100), s: .78 + .24 * depth };
-    }
-    const side = .60 + .35 * (v / 100);
-    return { x: w / 2 + (u - 50) * w * side / 100, y: h * (.06 + .87 * v / 100), s: .64 + .46 * v / 100 };
+    return this.projectField(u,v);
+  }
+
+  projectField(x, y) {
+    const { left, top, width, height } = this.pitchRect();
+    // Canonical world coordinates do not depend on the rendering camera.
+    // Keep the 35 x 25 m pitch ratio and use a small size cue by touchline depth.
+    return { x: left + width * x / 100, y: top + height * y / 100, s: .86 + .14 * (1 - y / 100) };
+  }
+
+  pitchRect() {
+    const w=this.scale.width,h=this.scale.height,ratio=PITCH.lengthMeters/PITCH.widthMeters;
+    const width=Math.min(w*.92,h*.88*ratio),height=width/ratio;
+    return { left:(w-width)/2,top:(h-height)/2,width,height };
   }
 
   drawBoard() {
     const g = this.pitch, w = this.scale.width, h = this.scale.height;
     g.clear();
-    const point = (u, v) => this.project(u, v);
-    if (this.visualMode === 'pass') {
-      g.fillStyle(0x071720, 1); g.fillRect(0, 0, w, h);
-      const shadow = [point(0,0),point(100,0),point(100,100),point(0,100)].map(({x,y})=>({x,y:y+7}));
-      g.fillStyle(0x02080d,.65);g.fillPoints(shadow,true);
-    } else g.fillStyle(0x11653d, 1).fillRect(0, 0, w, h);
-    const corners = [point(2, 0), point(98, 0), point(100, 100), point(0, 100)].map(({x,y}) => ({x,y}));
-    g.fillStyle(this.visualMode==='pass'?0x164843:0x147044, 1); g.fillPoints(corners, true);
+    const point = (x, y) => this.projectField(x, y);
+    g.fillStyle(0x071720, 1); g.fillRect(0, 0, w, h);
+    const corners = [[0,0],[100,0],[100,100],[0,100]].map(([x,y])=>point(x,y));
+    const shadow = corners.map(({x,y})=>({x,y:y+7}));
+    g.fillStyle(0x02080d,.65);g.fillPoints(shadow,true);
+    g.fillStyle(0x164843, 1); g.fillPoints(corners, true);
     for (let i = 0; i < 8; i += 2) {
       const y1 = i * 12.5, y2 = (i + 2) * 12.5;
-      const band = [point(0, y1), point(100, y1), point(100, y2), point(0, y2)].map(({x,y}) => ({x,y}));
+      const band = [[0,y1],[100,y1],[100,y2],[0,y2]].map(([x,y])=>point(x,y));
       const passColor=i%4===0?0x1c5550:0x174b47;
-      g.fillStyle(this.visualMode==='pass'?passColor:(i % 4 === 0 ? 0x0d6038 : 0x177448), this.visualMode==='pass'?.82:.48); g.fillPoints(band, true);
+      g.fillStyle(passColor,.82); g.fillPoints(band, true);
     }
-    g.lineStyle(Math.max(1.3, w * .003), this.visualMode==='pass'?0xd7efea:0xd9f3de, this.visualMode==='pass'?.76:.69);
+    g.lineStyle(Math.max(1.3, w * .003),0xd7efea,.76);
     const line = (a,b) => { const p1=point(...a), p2=point(...b); g.lineBetween(p1.x,p1.y,p2.x,p2.y); };
-    line([2,0],[0,100]); line([98,0],[100,100]); line([2,0],[98,0]); line([0,100],[100,100]); line([1,50],[99,50]);
+    line([0,0],[100,0]);line([0,100],[100,100]);line([0,0],[0,100]);line([100,0],[100,100]);line([50,0],[50,100]);
     const circle = (cx, cy, rx, ry, segments=48) => {
       const pts=[]; for(let i=0;i<=segments;i++){const a=2*Math.PI*i/segments;const p=point(cx+Math.cos(a)*rx,cy+Math.sin(a)*ry);pts.push(p.x,p.y);} g.beginPath();g.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.closePath();g.strokePath();
     };
-    circle(50,50,11,8.5);
+    circle(50,50,9,15);
     const box = (left,right,top,bottom) => { line([left,top],[right,top]);line([left,top],[left,bottom]);line([right,top],[right,bottom]); };
-    box(34,66,0,13); box(40,60,0,6);
-    box(34,66,87,100); box(40,60,94,100);
+    box(0,14,34,66);box(0,6,40,60);box(86,100,34,66);box(94,100,40,60);
     // Goal frames on both end lines make the target legible on small screens.
-    const goal=(v, direction)=>{const left=point(45,v),right=point(55,v),backLeft=point(45,v+direction*3),backRight=point(55,v+direction*3);g.lineStyle(Math.max(2,w*.004),0xf4f6ea,.92);g.lineBetween(left.x,left.y,backLeft.x,backLeft.y);g.lineBetween(right.x,right.y,backRight.x,backRight.y);g.lineBetween(backLeft.x,backLeft.y,backRight.x,backRight.y);};
+    const goal=(x, direction)=>{const top=point(x,45),bottom=point(x,55),backTop=point(x+direction*3,45),backBottom=point(x+direction*3,55);g.lineStyle(Math.max(2,w*.004),0xf4f6ea,.92);g.lineBetween(top.x,top.y,backTop.x,backTop.y);g.lineBetween(bottom.x,bottom.y,backBottom.x,backBottom.y);g.lineBetween(backTop.x,backTop.y,backBottom.x,backBottom.y);};
     goal(0,1);goal(100,-1);
-    const spot1=point(50,10),spot2=point(50,90);g.fillStyle(0xe8f5e8,.8);g.fillCircle(spot1.x,spot1.y,2);g.fillCircle(spot2.x,spot2.y,2);
+    const spot1=point(10,50),spot2=point(90,50);g.fillStyle(0xe8f5e8,.8);g.fillCircle(spot1.x,spot1.y,2);g.fillCircle(spot2.x,spot2.y,2);
+    if (new URLSearchParams(window.location.search).has('debugField')) this.drawDebugGrid(line, point);
+  }
+
+  drawDebugGrid(line, point) {
+    const g=this.pitch;g.lineStyle(.7,0xc8f4d0,.28);
+    for(let x=5;x<100;x+=5)line([x,0],[x,100]);
+    for(let y=100/12;y<100;y+=100/12)line([0,y],[100,y]);
+    const zoneNames=['E','D','C','B','A'];
+    this.debugLabels?.forEach(label=>label.destroy());this.debugLabels=[];
+    zoneNames.forEach((zone,index)=>{
+      const p=point(index*20+10,4);
+      this.debugLabels.push(this.add.text(p.x,p.y,zone,{fontFamily:'DM Sans,sans-serif',fontSize:'10px',fontStyle:'bold',color:'#c8f4d0'}).setOrigin(.5).setDepth(1200));
+    });
   }
 
   setVisualMode(type) {
-    this.visualMode=type==='pass'?'pass':'classic';
-    document.body.classList.toggle('pass-visual-trial',this.visualMode==='pass');
-    if(dom.directionArrow)dom.directionArrow.textContent=this.visualMode==='pass'?'→':'↑';
+    this.visualMode='pass';
+    document.body.classList.add('pass-visual-trial');
+    if(dom.directionArrow)dom.directionArrow.textContent='→';
     this.ballLabel.setVisible(this.visualMode!=='pass');
     this.drawBoard();
     for(const actor of Object.values(this.actors)){
@@ -149,7 +165,7 @@ class FootballScene extends Phaser.Scene {
     if (!this.controlRing || !this.controlTag) return;
     const actor = this.actors[this.activeControllerId];
     if (!actor) return;
-    const p = this.project(actor.world.x, actor.world.y);
+    const p = this.projectField(actor.world.x, actor.world.y);
     const ringOffset=this.visualMode==='pass'?0:9*p.s;
     this.controlRing.setPosition(p.x, p.y + ringOffset).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
     this.controlTag.setPosition(p.x, p.y - 25 * p.s).setScale(p.s).setDepth(p.y + 2).setVisible(visible);
@@ -185,7 +201,7 @@ class FootballScene extends Phaser.Scene {
     const tokenSheen=this.add.ellipse(0,-8,26,11,0xffffff,.13);
     const tokenHighlight=this.add.ellipse(-7,-9,12,4,0xffffff,.23).setRotation(-.22);
     const tokenNumber=this.add.text(0,-7,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:team==='home'?'14px':'13px',fontStyle:'bold',color:'#f7fbff'}).setOrigin(.5);
-    const tokenRole=this.add.text(0,8,team==='home'?displayLabel:(keeper?'K':'T'),{fontFamily:'DM Sans,sans-serif',fontSize:'9px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
+    const tokenRole=this.add.text(0,8,displayLabel,{fontFamily:'DM Sans,sans-serif',fontSize:'9px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
     tokenGroup.add([tokenShadow,tokenRim,tokenFace,tokenInset,tokenSheen,tokenHighlight,tokenNumber,tokenRole]);
     tokenGroup.setVisible(this.visualMode==='pass');
     c.add(tokenGroup);
@@ -196,16 +212,16 @@ class FootballScene extends Phaser.Scene {
 
   makeActors() {
     // Display numbers follow KVC positions; animation code retains stable internal IDs.
-    this.makeFootballer('gk','home',0xf1f0e7,'K',1,true);
-    this.makeFootballer('support','home',0xf1f0e7,'LF',11);
-    this.makeFootballer('wide','home',0xf1f0e7,'RF',7);
-    this.makeFootballer('me','home',0xb4ed47,'C',4);
-    this.makeFootballer('forward','home',0xf1f0e7,'SP',9);
-    this.makeFootballer('oppGk','away',0x8d514a,'KEEPER',1,true);
-    this.makeFootballer('press','away',0xe75d50,'T1',1);
-    this.makeFootballer('cover','away',0xe75d50,'T2',2);
-    this.makeFootballer('interceptor','away',0xe75d50,'T3',3);
-    this.makeFootballer('farDef','away',0xe75d50,'T4',4);
+    this.makeFootballer('gk','home',0xf1f0e7,'K',HOME_ROLES.gk.number,true);
+    this.makeFootballer('support','home',0xf1f0e7,'LF',HOME_ROLES.support.number);
+    this.makeFootballer('wide','home',0xf1f0e7,'RF',HOME_ROLES.wide.number);
+    this.makeFootballer('me','home',0xb4ed47,'C',HOME_ROLES.me.number);
+    this.makeFootballer('forward','home',0xf1f0e7,'S',HOME_ROLES.forward.number);
+    this.makeFootballer('oppGk','away',0x8d514a,'K',1,true);
+    this.makeFootballer('press','away',0xe75d50,'LA',1);
+    this.makeFootballer('cover','away',0xe75d50,'RA',2);
+    this.makeFootballer('interceptor','away',0xe75d50,'LV',3);
+    this.makeFootballer('farDef','away',0xe75d50,'RV',4);
   }
 
   resetPositions() {
@@ -218,7 +234,7 @@ class FootballScene extends Phaser.Scene {
   }
 
   resetPassLabels() {
-    const labels={gk:'K (1)',support:'LF (11)',wide:'RF (7)',me:'C (4)',forward:'S (9)',oppGk:'K',press:'T1',cover:'T2',interceptor:'T3',farDef:'T4'};
+    const labels={gk:'K (1)',support:'LF (11)',wide:'RF (7)',me:'C (4)',forward:'S (9)',oppGk:'K',press:'LA',cover:'RA',interceptor:'LV',farDef:'RV'};
     for(const [id,label] of Object.entries(labels))this.actors[id].label.setText(label);
   }
 
@@ -238,13 +254,13 @@ class FootballScene extends Phaser.Scene {
   }
 
   placeActor(actor) {
-    const p=this.project(actor.world.x,actor.world.y);
+    const p=this.projectField(actor.world.x,actor.world.y);
     actor.container.setPosition(p.x,p.y).setScale(p.s);actor.container.setDepth(p.y);
     actor.label.setPosition(p.x,p.y+21*p.s).setScale(p.s).setDepth(p.y+1);
     actor.baseScale=p.s;
     if (actor.id === this.activeControllerId) this.updateControlMarker();
   }
-  placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y),ballScale=this.visualMode==='pass'?1.5:1;this.ball.setPosition(p.x,p.y).setScale(p.s*ballScale);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
+  placeBall() { const p=this.projectField(this.world.ball.x,this.world.ball.y),ballScale=this.visualMode==='pass'?1.5:1;this.ball.setPosition(p.x,p.y).setScale(p.s*ballScale);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
   cancelTimer() {
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
@@ -274,7 +290,7 @@ class FootballScene extends Phaser.Scene {
       const finish=()=>{if(completed)return;completed=true;if(fallback)clearTimeout(fallback);this.world.ball={...to};this.placeBall();resolve();};
       const tween=this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
         this.world.ball.x=Phaser.Math.Linear(start.x,to.x,state.t);this.world.ball.y=Phaser.Math.Linear(start.y,to.y,state.t);
-        const p=this.project(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
+        const p=this.projectField(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
         const ballScale=this.visualMode==='pass'?1.5:1;
         this.ball.setPosition(p.x,p.y-lift).setScale(p.s*ballScale*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
       },onComplete:finish});
@@ -357,84 +373,16 @@ class FootballScene extends Phaser.Scene {
     await this.delay(250);this.showFeedback(choice);this.busy=false;
   }
 
-  async playA() {
-    // RF (7) staat breed rechts; de verdediging schuift mee maar sluit de pass niet.
-    const receiver=PASS_SCENARIO.watch[PASS_SCENARIO.passTargets.A.receiver];
-    await Promise.all([
-      this.moveBall(receiver,1150,'Sine.easeInOut'),
-      this.move(PASS_SCENARIO.passTargets.A.receiver,receiver,1150),
-      this.move('interceptor',{x:59,y:41},850),
-      this.move('forward',{x:53,y:24},700),
-      this.move('press',{x:52,y:49},850),
-      this.move('farDef',{x:75,y:42},900),
-      this.move('support',{x:27,y:65},700),
-      this.move('gk',{x:49,y:84},700),
-      this.move('cover',{x:59,y:43},700),
-      this.move('me',{x:51,y:55},750),
-      this.move('oppGk',{x:50,y:6},650),
-    ]);
-    // RF neemt een korte bal mee langs de rechterkant; LF blijft links als steun.
-    await Promise.all([
-      this.move('wide',{x:82,y:43},750),this.moveBall({x:82,y:43},750,'Sine.easeOut'),
-      this.move('interceptor',{x:64,y:39},800),this.move('farDef',{x:79,y:42},700),
-      this.move('me',{x:56,y:52},750),this.move('forward',{x:54,y:23},700),
-      this.move('press',{x:57,y:48},750),this.move('cover',{x:56,y:41},750),
-      this.move('support',{x:28,y:64},700),this.move('gk',{x:49,y:82},700),this.move('oppGk',{x:50,y:5},650),
-    ]);
-  }
-  async playB() {
-    // The central pass is intercepted in view: the defender runs across the ball's
-    // path, arrives just ahead of it, then takes the loose ball toward the press.
-    // The intended receiver is S (9); T3 crosses the actual central pass lane.
-    const meet=PASS_SCENARIO.passTargets.B.interception;
-    await Promise.all([
-      this.moveBall(meet,1050,'Linear'),
-      this.move('interceptor',meet,850,'Sine.easeIn'),
-      this.move('forward',{x:52,y:34},700),
-      this.move('press',{x:49,y:49},750),
-      this.move('cover',{x:55,y:42},750),
-      this.move('wide',{x:68,y:51},750),this.move('support',{x:39,y:67},750),
-      this.move('me',{x:51,y:53},750),this.move('gk',{x:50,y:86},700),
-      this.move('farDef',{x:70,y:43},750),this.move('oppGk',{x:50,y:6},650),
-    ]);
-    this.ball.setDepth(this.actors.interceptor.container.depth+2);
-    await this.delay(180);
-    await Promise.all([
-      this.move('interceptor',{x:54,y:49},700,'Sine.easeIn'),
-      this.moveBall({x:54,y:49},700,'Sine.easeOut'),
-      this.move('press',{x:52,y:50},650),
-      this.move('wide',{x:66,y:54},650),this.move('support',{x:41,y:66},650),
-      this.move('me',{x:53,y:52},650),this.move('gk',{x:50,y:84},650),
-      this.move('forward',{x:52,y:35},650),
-      this.move('cover',{x:52,y:41},650),this.move('farDef',{x:68,y:45},650),this.move('oppGk',{x:50,y:6},650),
-    ]);
-  }
-  async playC() {
-    // Veilige terugpass naar LF (11); beide flanken houden hun eigen kant.
-    const receiver=PASS_SCENARIO.passTargets.C.receiver;
-    const reception=PASS_SCENARIO.passTargets.C.reception;
-    await Promise.all([
-      this.moveBall(reception,1100,'Sine.easeInOut'),
-      this.move(receiver,reception,1100),
-      this.move('press',{x:43,y:51},700),
-      this.move('wide',{x:78,y:46},700),
-      this.move('forward',{x:52,y:25},700),
-      this.move('interceptor',{x:49,y:39},700),
-      this.move('farDef',{x:69,y:39},700),
-      this.move('me',{x:52,y:54},700),
-      this.move('gk',{x:49,y:84},650),this.move('cover',{x:54,y:42},700),this.move('oppGk',{x:50,y:6},650),
-    ]);
-    await Promise.all([
-      this.move(receiver,{x:33,y:65},650),this.moveBall({x:33,y:65},650,'Sine.easeOut'),
-      this.move('me',{x:53,y:52},650),this.move('wide',{x:79,y:45},650),
-      this.move('forward',{x:53,y:24},650),this.move('press',{x:45,y:50},650),
-      this.move('cover',{x:53,y:41},650),this.move('interceptor',{x:50,y:38},650),
-      this.move('farDef',{x:68,y:38},650),this.move('gk',{x:49,y:83},650),this.move('oppGk',{x:50,y:6},650),
-    ]);
+  async playA() { await this.playPassChoice('A'); }
+  async playB() { await this.playPassChoice('B'); }
+  async playC() { await this.playPassChoice('C'); }
+
+  async playPassChoice(choice) {
+    for (const phase of PASS_CHOICE_PATHS[choice]) await this.playScenarioPhase(phase);
   }
 
   async playRunChoice(choice) {
-    for(const phase of RUN_CHOICE_PATHS[choice]) await this.playRunPhase(phase);
+    for(const phase of RUN_CHOICE_PATHS[choice]) await this.playScenarioPhase(phase);
     if(choice==='C'){
       this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.40).setAlpha(1).setScale(.65);
       this.tweens.add({targets:this.goalBanner,scale:1,duration:350,ease:'Back.Out'});
@@ -442,21 +390,30 @@ class FootballScene extends Phaser.Scene {
     }
   }
 
-  async playRunPhase(phase) {
-    const { duration, players, carrier, receiver, ballTo, shot } = phase;
-    if(receiver && (!ballTo || !players[receiver] || players[receiver].x!==ballTo.x || players[receiver].y!==ballTo.y)) {
-      throw new Error('De pass in een loopvervolg moet bij de gekozen ontvanger aankomen.');
+  async playScenarioPhase(phase) {
+    const {duration,carrier,receiver,ballTo,shot}=phase;
+    const targets={...phase.players};
+    if(receiver&&(!ballTo||!targets[receiver]||targets[receiver].x!==ballTo.x||targets[receiver].y!==ballTo.y)){
+      throw new Error('De pass moet bij de gekozen ontvanger aankomen.');
     }
-    const tasks=Object.entries(players).map(([id,to])=>this.move(id,to,duration));
+    if(phase.defensiveShape==='compactKvcDiamond'){
+      const ballReference=carrier?targets[carrier]:ballTo;
+      if(!ballReference)throw new Error('Een compact verdedigingspatroon vereist een balpositie.');
+      const compact=buildKvcDefensiveDiamond(ballReference);
+      for(const id of ['gk','me','support','wide','forward'])targets[id]=compact[id];
+    }
+    let ballTarget;
     if(carrier){
-      if(!players[carrier])throw new Error('De baldrager moet tijdens de dribbel meebewegen.');
-      tasks.push(this.moveBall(players[carrier],duration,'Sine.easeInOut'));
-    }else if(receiver||ballTo){
-      tasks.push(this.moveBall(ballTo,duration,'Sine.easeInOut'));
-    }else if(shot){
-      tasks.push(this.moveBall(shot,duration,'Sine.easeIn'));
-    }else throw new Error('Elke loopfase heeft een baldrager, ontvanger of schot nodig.');
+      if(!targets[carrier])throw new Error('De baldrager moet meebewegen.');
+      ballTarget=targets[carrier];
+    }else if(receiver||ballTo)ballTarget=ballTo;
+    else if(shot)ballTarget=shot;
+    else throw new Error('Elke vervolgfase heeft een baldrager, ontvanger of schot nodig.');
+    const tasks=Object.entries(targets).map(([id,to])=>this.move(id,to,duration));
+    tasks.push(this.moveBall(ballTarget,duration,phase.ballEase||'Sine.easeInOut'));
     await Promise.all(tasks);
+    if(phase.interceptionBy&&this.actors[phase.interceptionBy])this.ball.setDepth(this.actors[phase.interceptionBy].container.depth+2);
+    if(phase.pauseAfter)await this.delay(phase.pauseAfter);
   }
 
   showFeedback(choice) {
