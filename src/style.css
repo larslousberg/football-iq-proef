@@ -140,7 +140,7 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .next-button { min-height:50px;font-size:13px; }
   .footer { min-height:30px;gap:11px;padding:0 3px;font-size:8px; }
   .footer-note { font-size:9px; }
-  .pass-visual-trial .answer-label { font-size:10px;line-height:1.15; }
+  .pass-visual-trial .answer-label { font-size:11px;line-height:1.15; }
 }
 @media (max-height:730px) and (max-width:700px) {
   #app { min-height:0; }

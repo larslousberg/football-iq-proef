@@ -125,6 +125,7 @@ class FootballScene extends Phaser.Scene {
     this.visualMode=type==='pass'?'pass':'classic';
     document.body.classList.toggle('pass-visual-trial',this.visualMode==='pass');
     if(dom.directionArrow)dom.directionArrow.textContent=this.visualMode==='pass'?'→':'↑';
+    this.ballLabel.setVisible(this.visualMode!=='pass');
     this.drawBoard();
     for(const actor of Object.values(this.actors)){
       actor.tokenGroup.setVisible(this.visualMode==='pass');
@@ -184,7 +185,7 @@ class FootballScene extends Phaser.Scene {
     const tokenSheen=this.add.ellipse(0,-9,29,13,0xffffff,.13);
     const tokenHighlight=this.add.ellipse(-7,-9,12,4,0xffffff,.23).setRotation(-.22);
     const tokenNumber=this.add.text(0,-7,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:team==='home'?'14px':'13px',fontStyle:'bold',color:'#f7fbff'}).setOrigin(.5);
-    const tokenRole=this.add.text(0,8,team==='home'?displayLabel:(keeper?'K':'T'),{fontFamily:'DM Sans,sans-serif',fontSize:'7px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
+    const tokenRole=this.add.text(0,8,team==='home'?displayLabel:(keeper?'K':'T'),{fontFamily:'DM Sans,sans-serif',fontSize:'9px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
     tokenGroup.add([tokenShadow,tokenRim,tokenFace,tokenInset,tokenSheen,tokenHighlight,tokenNumber,tokenRole]);
     tokenGroup.setVisible(this.visualMode==='pass');
     c.add(tokenGroup);
@@ -243,7 +244,7 @@ class FootballScene extends Phaser.Scene {
     actor.baseScale=p.s;
     if (actor.id === this.activeControllerId) this.updateControlMarker();
   }
-  placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
+  placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y),ballScale=this.visualMode==='pass'?1.5:1;this.ball.setPosition(p.x,p.y).setScale(p.s*ballScale);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
   cancelTimer() {
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
@@ -274,7 +275,8 @@ class FootballScene extends Phaser.Scene {
       const tween=this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
         this.world.ball.x=Phaser.Math.Linear(start.x,to.x,state.t);this.world.ball.y=Phaser.Math.Linear(start.y,to.y,state.t);
         const p=this.project(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
-        this.ball.setPosition(p.x,p.y-lift).setScale(p.s*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
+        const ballScale=this.visualMode==='pass'?1.5:1;
+        this.ball.setPosition(p.x,p.y-lift).setScale(p.s*ballScale*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
       },onComplete:finish});
       fallback=window.setTimeout(()=>{tween.stop();finish();},duration+1200);
     });
