@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EXERCISE_SEQUENCE, PASS_CHOICE_PATHS, PASS_SCENARIO, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
-import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validatePassChoicePaths, validatePassTargets, validateRunChoicePaths } from './exercise-contract.js';
+import { EXERCISE_SEQUENCE, RUN_CHOICE_PATHS, SPACE_MAKING_SCENARIO } from './scenarios.js';
+import { KEEPER_BUILD_UP_SCENARIO, buildKeeperBuildUpOutcome, isKeeperPassLaneOpen, validateKeeperBuildUpScenario } from './keeper-build-up.js';
+import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeometry, validateRunChoicePaths } from './exercise-contract.js';
 import { HOME_ROLES, KVC_DIAMOND_START, OPPONENT_ATTACK_DIRECTION, PITCH, buildKvcDefensiveDiamond, fieldToScene, getFormationAnchors, getKvcZone, sceneToField, validateLineup } from './football-model.js';
 
 test('de bestaande reeks koppelt beide oefeningstypes aan de juiste speler en drie keuzes', () => {
@@ -29,8 +30,61 @@ test('een timeout is een geldige keuze-uitkomst; onbekende knopcodes niet', () =
 });
 
 test('beide situaties houden K, C, LF, RF en S op hun herkenbare basisposities', () => {
-  assert.deepEqual(validateKvcScenarioGeometry(PASS_SCENARIO, 'pass'), []);
+  assert.deepEqual(validateKeeperBuildUpScenario(), []);
   assert.deepEqual(validateKvcScenarioGeometry(SPACE_MAKING_SCENARIO, 'run'), []);
+});
+
+test('de keeperopbouw begint bij K en opent de passlijn pas na de drukfout', () => {
+  const scenario=KEEPER_BUILD_UP_SCENARIO;
+  const [angle,pass]=scenario.openingPhases;
+  assert.deepEqual(scenario.start.ball,scenario.start.gk);
+  assert.equal(isKeeperPassLaneOpen(scenario.start.gk,scenario.start.me,[scenario.start.press]),false);
+  assert.equal(isKeeperPassLaneOpen(angle.players.gk,pass.ballTo,[pass.players.press,pass.players.cover]),true);
+  assert.equal(pass.receiver,'me');
+  assert.deepEqual(pass.ballTo,pass.players.me);
+});
+
+test('de rode 2-2 start hoog, houdt twee herkenbare lijnen en schermt SP af', () => {
+  const s=KEEPER_BUILD_UP_SCENARIO;
+  assert.ok(s.start.press.x<50&&s.start.cover.x<50);
+  assert.ok(s.start.interceptor.x>s.start.press.x&&s.start.farDef.x>s.start.cover.x);
+  const lineClosed=!isKeeperPassLaneOpen(s.openingPhases[1].players.me,s.openingPhases[1].players.forward,[s.openingPhases[1].players.interceptor]);
+  assert.equal(lineClosed,true);
+});
+
+test('de drie keeperopbouwkeuzes maken elk hun eigen geanimeerde vervolg', () => {
+  const s=KEEPER_BUILD_UP_SCENARIO;
+  const decision={...s.openingPhases[1].players,ball:{...s.openingPhases[1].ballTo}};
+  const a=buildKeeperBuildUpOutcome('A',structuredClone(decision),0);
+  const b=buildKeeperBuildUpOutcome('B',structuredClone(decision),0);
+  const c=buildKeeperBuildUpOutcome('C',structuredClone(decision),0);
+  assert.equal(a.reading.receiver,'wide');
+  assert.equal(a.phases[0].receiver,'wide');
+  assert.deepEqual(a.phases[0].ballTo,a.phases[0].players.wide);
+  assert.equal(b.reading.laneOpen,false);
+  assert.equal(b.phases[0].carrier,'interceptor');
+  assert.equal(b.phases[0].interceptionBy,'interceptor');
+  assert.equal(c.reading.action,'dribble');
+  assert.ok(c.phases.every(phase=>phase.carrier==='me'));
+  for(const outcome of [a,b,c])for(const phase of outcome.phases){
+    assert.deepEqual(Object.keys(phase.players).sort(),['gk','me','support','wide','forward','oppGk','press','cover','interceptor','farDef'].sort());
+    assert.ok(phase.duration>0);
+  }
+  assert.notDeepEqual(a.phases[0].players,b.phases[0].players);
+  assert.notDeepEqual(a.phases[0].players,c.phases[0].players);
+});
+
+test('dribbelen reageert op de afstand tot de naderende drukker', () => {
+  const s=KEEPER_BUILD_UP_SCENARIO;
+  const decision={...s.openingPhases[1].players,ball:{...s.openingPhases[1].ballTo}};
+  const early=buildKeeperBuildUpOutcome('C',structuredClone(decision),0);
+  const lateState={...structuredClone(decision),press:{...s.decision.pressureTarget}};
+  const late=buildKeeperBuildUpOutcome('C',lateState,s.timerMs);
+  assert.equal(early.reading.hasRoom,true);
+  assert.equal(late.reading.hasRoom,false);
+  assert.equal(early.feedback.points,100);
+  assert.equal(late.feedback.points,50);
+  assert.ok(early.phases[0].players.me.x>late.phases[0].players.me.x);
 });
 
 test('de loopanimaties blijven aan de juiste flankzijde en gebruiken geloofwaardige snelheden', () => {
@@ -48,19 +102,17 @@ test('keuze C trekt de centrale verdediger omhoog weg vóór RF naar binnen loop
   assert.deepEqual(passToRightFlank.ballTo, passToRightFlank.players.wide);
 });
 
-test('de passkeuzes komen overeen met ontvangers en de onderschepping ligt in de passlijn', () => {
-  assert.deepEqual(validatePassTargets(PASS_SCENARIO), []);
-  assert.deepEqual(validatePassChoicePaths(PASS_CHOICE_PATHS, PASS_SCENARIO.watch), []);
-});
-
-test('de passknoppen noemen de speler die de bijbehorende animatie ontvangt', () => {
+test('de nieuwe pass-/dribbelknoppen horen bij de centrale balbezitter', () => {
   const passExercise=EXERCISE_SEQUENCE[0];
+  assert.equal(passExercise.id,KEEPER_BUILD_UP_SCENARIO.id);
+  assert.equal(passExercise.type,'pass');
+  assert.equal(passExercise.controllerId,'me');
+  assert.equal(passExercise.ballCarrierId,'me');
   assert.match(passExercise.choiceLabels.A,/RF\s*\(7\)/);
   assert.match(passExercise.choiceLabels.B,/SP\s*\(9\)/);
-  assert.match(passExercise.choiceLabels.C,/LF\s*\(11\)/);
-  assert.equal(PASS_SCENARIO.passTargets["A"].receiver,'wide');
-  assert.equal(PASS_SCENARIO.passTargets["B"].receiver,'forward');
-  assert.equal(PASS_SCENARIO.passTargets["C"].receiver,'support');
+  assert.match(passExercise.choiceLabels.C,/Dribbel/);
+  assert.equal(KEEPER_BUILD_UP_SCENARIO.choices.A.receiver,'wide');
+  assert.equal(KEEPER_BUILD_UP_SCENARIO.choices.B.receiver,'forward');
 });
 
 test('alle tien spelers hebben een positie in elke loopvervolgfase', () => {
@@ -80,13 +132,13 @@ test('de KVC-formatie gebruikt veldcoördinaten en vaste positienummers', () => 
   assert.equal(PITCH.lengthMeters,35);
   assert.equal(PITCH.widthMeters,25);
   assert.deepEqual(sceneToField(fieldToScene({x:42,y:15})),{x:42,y:15});
-  assert.deepEqual(PASS_SCENARIO.start.gk,KVC_DIAMOND_START.gk);
-  assert.deepEqual(PASS_SCENARIO.start.me,KVC_DIAMOND_START.me);
-  assert.deepEqual(PASS_SCENARIO.start.support,KVC_DIAMOND_START.support);
-  assert.deepEqual(PASS_SCENARIO.start.wide,KVC_DIAMOND_START.wide);
-  assert.deepEqual(PASS_SCENARIO.start.forward,KVC_DIAMOND_START.forward);
-  assert.equal(PASS_SCENARIO.start.oppGk.x,96);
-  assert.ok(PASS_SCENARIO.start.interceptor.x>PASS_SCENARIO.start.press.x);
+  assert.deepEqual(KEEPER_BUILD_UP_SCENARIO.start.gk,KVC_DIAMOND_START.gk);
+  assert.deepEqual(KEEPER_BUILD_UP_SCENARIO.start.me,KVC_DIAMOND_START.me);
+  assert.deepEqual(KEEPER_BUILD_UP_SCENARIO.start.support,KVC_DIAMOND_START.support);
+  assert.deepEqual(KEEPER_BUILD_UP_SCENARIO.start.wide,KVC_DIAMOND_START.wide);
+  assert.deepEqual(KEEPER_BUILD_UP_SCENARIO.start.forward,KVC_DIAMOND_START.forward);
+  assert.equal(KEEPER_BUILD_UP_SCENARIO.start.oppGk.x,96);
+  assert.ok(KEEPER_BUILD_UP_SCENARIO.start.interceptor.x>KEEPER_BUILD_UP_SCENARIO.start.press.x);
 });
 
 test('de drie tegenstanderformaties hebben twee kanten, een keeper en de juiste veldrichting', () => {
