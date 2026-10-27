@@ -178,11 +178,11 @@ class FootballScene extends Phaser.Scene {
     const legacyParts=[shadow,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,body,stripe,head,hair,numberText];
     c.add(legacyParts);
     const tokenGroup=this.add.container(0,0);
-    const tokenShadow=this.add.ellipse(2,18,46,13,0x02080d,.48);
-    const tokenRim=this.add.circle(0,0,22,team==='home'?0x829097:0xf0aaa1,.96);
-    const tokenFace=this.add.circle(0,-1,19.5,team==='home'?0x101c27:0x9d2729,1);
-    const tokenInset=this.add.circle(0,-1,17.6,team==='home'?0x070d13:0x791c20,1).setStrokeStyle(1,team==='home'?0xb7c7cd:0xffb8ae,.42);
-    const tokenSheen=this.add.ellipse(0,-9,29,13,0xffffff,.13);
+    const tokenShadow=this.add.ellipse(2,17,42,12,0x02080d,.48);
+    const tokenRim=this.add.circle(0,0,20,team==='home'?0x829097:0xf0aaa1,.96);
+    const tokenFace=this.add.circle(0,-1,17.8,team==='home'?0x101c27:0x9d2729,1);
+    const tokenInset=this.add.circle(0,-1,16.1,team==='home'?0x070d13:0x791c20,1).setStrokeStyle(1,team==='home'?0xb7c7cd:0xffb8ae,.42);
+    const tokenSheen=this.add.ellipse(0,-8,26,11,0xffffff,.13);
     const tokenHighlight=this.add.ellipse(-7,-9,12,4,0xffffff,.23).setRotation(-.22);
     const tokenNumber=this.add.text(0,-7,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:team==='home'?'14px':'13px',fontStyle:'bold',color:'#f7fbff'}).setOrigin(.5);
     const tokenRole=this.add.text(0,8,team==='home'?displayLabel:(keeper?'K':'T'),{fontFamily:'DM Sans,sans-serif',fontSize:'9px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
