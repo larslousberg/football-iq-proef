@@ -5,6 +5,7 @@ import { isExerciseChoiceValid, validateExerciseSequence, validateKvcScenarioGeo
 
 const dom = {
   field: document.querySelector('#game'),
+  directionArrow: document.querySelector('#fieldDirectionArrow'),
   welcome: document.querySelector('#welcomeScrim'),
   welcomeStart: document.querySelector('#welcomeStart'),
   roundLabel: document.querySelector('#roundLabel'),
@@ -56,7 +57,7 @@ const scenarioErrors = [
 if (scenarioErrors.length) throw new Error(`Ongeldige KVC-situatie: ${scenarioErrors.join(' ')}`);
 
 class FootballScene extends Phaser.Scene {
-  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; }
+  constructor() { super('football'); this.actors = {}; this.world = {}; this.busy = false; this.activeExercise = 'pass'; this.activeExerciseDefinition = null; this.activeControllerId = 'me'; this.currentExerciseIndex = 0; this.visualMode = 'pass'; }
 
   create() {
     this.pitch = this.add.graphics();
@@ -64,17 +65,25 @@ class FootballScene extends Phaser.Scene {
     this.ballLabel = this.add.text(0, 0, 'BAL', { fontFamily: 'DM Sans, sans-serif', fontSize: '9px', color: '#f6f7ef', fontStyle: 'bold', stroke: '#092217', strokeThickness: 3 }).setOrigin(.5, 1);
     this.goalBanner = this.add.text(0, 0, 'GOAL!', { fontFamily: 'Space Grotesk, sans-serif', fontSize: '34px', fontStyle: 'bold', color: '#d5ff70', stroke: '#082015', strokeThickness: 7 }).setOrigin(.5).setAlpha(0).setDepth(1000);
     this.makeActors();
-    this.controlRing = this.add.ellipse(0, 0, 52, 34, 0xb3f34a, .10).setStrokeStyle(4, 0xd5ff70, 1).setDepth(0);
+    this.controlRing = this.add.ellipse(0, 0, 56, 52, 0x60f3c5, .10).setStrokeStyle(3, 0x6df2c8, 1).setDepth(0);
     this.controlTag = this.add.text(0, 0, 'JIJ', { fontFamily: 'DM Sans, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#14200d', backgroundColor: '#d5ff70', padding: { x: 6, y: 3 } }).setOrigin(.5, 1).setDepth(1);
     this.scale.on('resize', this.handleResize, this);
     this.drawBoard();
     this.goalBanner.setPosition(this.scale.width/2,this.scale.height*.43);
     this.resetPositions();
+    this.setVisualMode('pass');
     window.footballScene = this;
   }
 
   project(u, v) {
     const w = this.scale.width, h = this.scale.height;
+    if (this.visualMode === 'pass') {
+      // Fixed touchline view: our goal is left, the attacking goal right.
+      // Scenario coordinates remain unchanged; only their projection changes.
+      const depth = (100 - v) / 100;
+      const side = .64 + .22 * depth;
+      return { x: w * (.05 + .90 * depth), y: h * (.5 + (u - 50) * side / 100), s: .78 + .24 * depth };
+    }
     const side = .60 + .35 * (v / 100);
     return { x: w / 2 + (u - 50) * w * side / 100, y: h * (.06 + .87 * v / 100), s: .64 + .46 * v / 100 };
   }
@@ -82,16 +91,21 @@ class FootballScene extends Phaser.Scene {
   drawBoard() {
     const g = this.pitch, w = this.scale.width, h = this.scale.height;
     g.clear();
-    g.fillStyle(0x11653d, 1); g.fillRect(0, 0, w, h);
     const point = (u, v) => this.project(u, v);
+    if (this.visualMode === 'pass') {
+      g.fillStyle(0x071720, 1); g.fillRect(0, 0, w, h);
+      const shadow = [point(0,0),point(100,0),point(100,100),point(0,100)].map(({x,y})=>({x,y:y+7}));
+      g.fillStyle(0x02080d,.65);g.fillPoints(shadow,true);
+    } else g.fillStyle(0x11653d, 1).fillRect(0, 0, w, h);
     const corners = [point(2, 0), point(98, 0), point(100, 100), point(0, 100)].map(({x,y}) => ({x,y}));
-    g.fillStyle(0x147044, 1); g.fillPoints(corners, true);
+    g.fillStyle(this.visualMode==='pass'?0x164843:0x147044, 1); g.fillPoints(corners, true);
     for (let i = 0; i < 8; i += 2) {
       const y1 = i * 12.5, y2 = (i + 2) * 12.5;
       const band = [point(0, y1), point(100, y1), point(100, y2), point(0, y2)].map(({x,y}) => ({x,y}));
-      g.fillStyle(i % 4 === 0 ? 0x0d6038 : 0x177448, .48); g.fillPoints(band, true);
+      const passColor=i%4===0?0x1c5550:0x174b47;
+      g.fillStyle(this.visualMode==='pass'?passColor:(i % 4 === 0 ? 0x0d6038 : 0x177448), this.visualMode==='pass'?.82:.48); g.fillPoints(band, true);
     }
-    g.lineStyle(Math.max(1.3, w * .003), 0xd9f3de, .69);
+    g.lineStyle(Math.max(1.3, w * .003), this.visualMode==='pass'?0xd7efea:0xd9f3de, this.visualMode==='pass'?.76:.69);
     const line = (a,b) => { const p1=point(...a), p2=point(...b); g.lineBetween(p1.x,p1.y,p2.x,p2.y); };
     line([2,0],[0,100]); line([98,0],[100,100]); line([2,0],[98,0]); line([0,100],[100,100]); line([1,50],[99,50]);
     const circle = (cx, cy, rx, ry, segments=48) => {
@@ -107,6 +121,22 @@ class FootballScene extends Phaser.Scene {
     const spot1=point(50,10),spot2=point(50,90);g.fillStyle(0xe8f5e8,.8);g.fillCircle(spot1.x,spot1.y,2);g.fillCircle(spot2.x,spot2.y,2);
   }
 
+  setVisualMode(type) {
+    this.visualMode=type==='pass'?'pass':'classic';
+    document.body.classList.toggle('pass-visual-trial',this.visualMode==='pass');
+    if(dom.directionArrow)dom.directionArrow.textContent=this.visualMode==='pass'?'→':'↑';
+    this.ballLabel.setVisible(this.visualMode!=='pass');
+    this.drawBoard();
+    for(const actor of Object.values(this.actors)){
+      actor.tokenGroup.setVisible(this.visualMode==='pass');
+      actor.legacyParts.forEach(part=>part.setVisible(this.visualMode!=='pass'));
+      actor.label.setVisible(this.visualMode!=='pass');
+      this.placeActor(actor);
+    }
+    this.placeBall();
+    this.updateControlMarker(true);
+  }
+
   handleResize() {
     this.drawBoard();
     for (const actor of Object.values(this.actors)) this.placeActor(actor);
@@ -120,7 +150,8 @@ class FootballScene extends Phaser.Scene {
     const actor = this.actors[this.activeControllerId];
     if (!actor) return;
     const p = this.project(actor.world.x, actor.world.y);
-    this.controlRing.setPosition(p.x, p.y + 9 * p.s).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
+    const ringOffset=this.visualMode==='pass'?0:9*p.s;
+    this.controlRing.setPosition(p.x, p.y + ringOffset).setScale(p.s).setDepth(p.y + .5).setVisible(visible);
     this.controlTag.setPosition(p.x, p.y - 25 * p.s).setScale(p.s).setDepth(p.y + 2).setVisible(visible);
   }
 
@@ -144,9 +175,22 @@ class FootballScene extends Phaser.Scene {
     const head=this.add.circle(0,-14,7.2,0xd9ab83).setStrokeStyle(1,0x463729,.5);
     const hair=this.add.ellipse(0,-18,13,6,team==='home'?0x49392c:0x38271f);
     const numberText=this.add.text(0,-2,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:'8px',fontStyle:'bold',color:team==='home'?'#132218':'#fff6ee'}).setOrigin(.5);
-    c.add([shadow,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,body,stripe,head,hair,numberText]);
+    const legacyParts=[shadow,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,body,stripe,head,hair,numberText];
+    c.add(legacyParts);
+    const tokenGroup=this.add.container(0,0);
+    const tokenShadow=this.add.ellipse(2,17,42,12,0x02080d,.48);
+    const tokenRim=this.add.circle(0,0,20,team==='home'?0x829097:0xf0aaa1,.96);
+    const tokenFace=this.add.circle(0,-1,17.8,team==='home'?0x101c27:0x9d2729,1);
+    const tokenInset=this.add.circle(0,-1,16.1,team==='home'?0x070d13:0x791c20,1).setStrokeStyle(1,team==='home'?0xb7c7cd:0xffb8ae,.42);
+    const tokenSheen=this.add.ellipse(0,-8,26,11,0xffffff,.13);
+    const tokenHighlight=this.add.ellipse(-7,-9,12,4,0xffffff,.23).setRotation(-.22);
+    const tokenNumber=this.add.text(0,-7,String(number),{fontFamily:'Space Grotesk,sans-serif',fontSize:team==='home'?'14px':'13px',fontStyle:'bold',color:'#f7fbff'}).setOrigin(.5);
+    const tokenRole=this.add.text(0,8,team==='home'?displayLabel:(keeper?'K':'T'),{fontFamily:'DM Sans,sans-serif',fontSize:'9px',fontStyle:'bold',color:team==='home'?'#c6e4d7':'#ffe0dc',letterSpacing:.5}).setOrigin(.5);
+    tokenGroup.add([tokenShadow,tokenRim,tokenFace,tokenInset,tokenSheen,tokenHighlight,tokenNumber,tokenRole]);
+    tokenGroup.setVisible(this.visualMode==='pass');
+    c.add(tokenGroup);
     const label=this.add.text(0,0,displayLabel,{fontFamily:'DM Sans,sans-serif',fontSize:'10px',fontStyle:'bold',color:team==='home'?'#f4f7e9':'#ffd7d1',stroke:'#102719',strokeThickness:3}).setOrigin(.5,0);
-    const actor={id,team,displayLabel,keeper,container:c,label,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,numberText,runTween:null,world:{x:50,y:50},baseScale:1};
+    const actor={id,team,displayLabel,keeper,container:c,label,leftLeg,rightLeg,leftBoot,rightBoot,armL,armR,numberText,tokenGroup,legacyParts,runTween:null,world:{x:50,y:50},baseScale:1};
     this.actors[id]=actor; return actor;
   }
 
@@ -156,7 +200,7 @@ class FootballScene extends Phaser.Scene {
     this.makeFootballer('support','home',0xf1f0e7,'LF',11);
     this.makeFootballer('wide','home',0xf1f0e7,'RF',7);
     this.makeFootballer('me','home',0xb4ed47,'C',4);
-    this.makeFootballer('forward','home',0xf1f0e7,'S',9);
+    this.makeFootballer('forward','home',0xf1f0e7,'SP',9);
     this.makeFootballer('oppGk','away',0x8d514a,'KEEPER',1,true);
     this.makeFootballer('press','away',0xe75d50,'T1',1);
     this.makeFootballer('cover','away',0xe75d50,'T2',2);
@@ -200,7 +244,7 @@ class FootballScene extends Phaser.Scene {
     actor.baseScale=p.s;
     if (actor.id === this.activeControllerId) this.updateControlMarker();
   }
-  placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y);this.ball.setPosition(p.x,p.y).setScale(p.s);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
+  placeBall() { const p=this.project(this.world.ball.x,this.world.ball.y),ballScale=this.visualMode==='pass'?1.5:1;this.ball.setPosition(p.x,p.y).setScale(p.s*ballScale);this.ball.setDepth(p.y+2);this.ballLabel.setPosition(p.x,p.y-10*p.s).setScale(p.s).setDepth(p.y+3); }
   async delay(ms) { await new Promise(resolve=>window.setTimeout(resolve,ms)); }
   cancelTimer() {
     if(this.timerFrame){cancelAnimationFrame(this.timerFrame);this.timerFrame=null;}
@@ -208,6 +252,7 @@ class FootballScene extends Phaser.Scene {
   }
   stopRun(actor) { if(actor.runTween){actor.runTween.remove(false);actor.runTween=null;} actor.leftLeg.setAngle(0);actor.rightLeg.setAngle(0);actor.leftBoot.setY(21);actor.rightBoot.setY(21);actor.armL.setAngle(-.18);actor.armR.setAngle(.18); }
   runCycle(actor) {
+    if(this.visualMode==='pass')return;
     this.stopRun(actor);
     let swap=false;
     actor.runTween=this.time.addEvent({delay:115,loop:true,callback:()=>{swap=!swap;actor.leftLeg.setAngle(swap?-24:20);actor.rightLeg.setAngle(swap?20:-24);actor.leftBoot.setY(swap?19:23);actor.rightBoot.setY(swap?23:19);actor.armL.setAngle(swap?-.45:.12);actor.armR.setAngle(swap?.12:-.45);}});
@@ -230,7 +275,8 @@ class FootballScene extends Phaser.Scene {
       const tween=this.tweens.add({targets:state,t:1,duration,ease,onUpdate:()=>{
         this.world.ball.x=Phaser.Math.Linear(start.x,to.x,state.t);this.world.ball.y=Phaser.Math.Linear(start.y,to.y,state.t);
         const p=this.project(this.world.ball.x,this.world.ball.y);const lift=air?Math.sin(Math.PI*state.t)*18:Math.sin(Math.PI*state.t)*3;
-        this.ball.setPosition(p.x,p.y-lift).setScale(p.s*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
+        const ballScale=this.visualMode==='pass'?1.5:1;
+        this.ball.setPosition(p.x,p.y-lift).setScale(p.s*ballScale*(1+Math.sin(Math.PI*state.t)*.12));this.ballLabel.setPosition(p.x,p.y-10*p.s-lift).setScale(p.s);this.ball.setDepth(p.y+5);
       },onComplete:finish});
       fallback=window.setTimeout(()=>{tween.stop();finish();},duration+1200);
     });
@@ -451,6 +497,7 @@ async function beginExercise(index) {
   scene.cancelTimer();
   scene.busy=true;scene.currentExerciseIndex=index;
   const exercise=EXERCISE_SEQUENCE[index];scene.activeExercise=exercise.type;scene.activeExerciseDefinition=exercise;scene.activeControllerId=exercise.controllerId;
+  scene.setVisualMode(exercise.type);
   scene.setChoiceLabels(exercise);
   dom.roundLabel.textContent=`OEFENING ${index+1} / ${EXERCISE_SEQUENCE.length}`;
   dom.answers.hidden=true;dom.feedback.hidden=true;dom.nextButton.hidden=true;dom.timerTrack.classList.remove('active');dom.countdown.textContent='';

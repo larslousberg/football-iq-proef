@@ -78,6 +78,25 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
 .welcome-card>p:not(.eyebrow) { margin:0 0 21px;color:#c3d0c4;font-size:14px;line-height:1.55; }
 .welcome-start { width:100%; }
 
+/* Pass-scene visual trial. The loop exercise keeps its current presentation. */
+.pass-visual-trial .game-shell { border-color:#5be0c344;background:#07151d;box-shadow:0 22px 70px #0007; }
+.pass-visual-trial .field-frame { background:#071720; }
+.pass-visual-trial .phase-label,.pass-visual-trial .field-direction { background:#06131de8;border-color:#8bead33d; }
+.pass-visual-trial .phase-label .pulse { background:#66efc0;box-shadow:0 0 11px #66efc088; }
+.pass-visual-trial .lesson-panel { background:linear-gradient(145deg,#0c2029,#091820); }
+.pass-visual-trial .lesson-prompt { color:#f3fbfa; }
+.pass-visual-trial .countdown { color:#76f0c8; }
+.pass-visual-trial #timerFill { background:linear-gradient(90deg,#65efc2,#a4f087); }
+.pass-visual-trial .answer { border-color:#56d9bb45;background:linear-gradient(145deg,#123a39,#0d292b); }
+.pass-visual-trial .answer:hover,.pass-visual-trial .answer:focus-visible { border-color:#70efc7;background:linear-gradient(145deg,#174943,#103437); }
+.pass-visual-trial .letter { background:#69edc4;color:#07221c; }
+.pass-visual-trial .answer-arrow { color:#75e9c4; }
+.pass-visual-trial .feedback { border-color:#58e4bd55;background:#102d31; }
+.pass-visual-trial .feedback-mark { background:#69edc4;color:#08211b; }
+.pass-visual-trial .feedback-copy .score-summary { color:#83f0cb; }
+.pass-visual-trial .key-white { background:#111d28;box-shadow:0 0 0 2px #c4dce733; }
+.pass-visual-trial .key-red { background:#a92a32;box-shadow:0 0 0 2px #ef666644; }
+
 @media (min-width:900px) {
   #app { height:100dvh;max-height:1080px; }
   .game-shell { max-height:calc(100dvh - 201px); }
@@ -121,6 +140,7 @@ h1 { margin:0; font:700 clamp(26px,3vw,38px)/1.05 'Space Grotesk',sans-serif; le
   .next-button { min-height:50px;font-size:13px; }
   .footer { min-height:30px;gap:11px;padding:0 3px;font-size:8px; }
   .footer-note { font-size:9px; }
+  .pass-visual-trial .answer-label { font-size:11px;line-height:1.15; }
 }
 @media (max-height:730px) and (max-width:700px) {
   #app { min-height:0; }
